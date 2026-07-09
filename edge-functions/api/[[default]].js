@@ -1,8 +1,9 @@
 export default async function onRequest(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const path = url.pathname;
-  const method = request.method;
+  var request = context.request;
+  var env = context.env;
+  var url = new URL(request.url);
+  var path = url.pathname;
+  var method = request.method;
 
   if (method === 'OPTIONS') {
     return new Response(null, {
@@ -15,66 +16,97 @@ export default async function onRequest(context) {
     });
   }
 
-  const kv = BOOKMARK_KV;
+  var kv = BOOKMARK_KV;
 
-  const authCheck = async () => {
-    const h = request.headers.get('X-Auth-Token');
+  var authCheck = async function() {
+    var h = request.headers.get('X-Auth-Token');
     if (!h) return false;
-    const s = await kv.get('auth_tokens');
-    return s ? JSON.parse(s).includes(h) : false;
+    var s = await kv.get('auth_tokens');
+    if (!s) return false;
+    var tokens = JSON.parse(s);
+    return tokens.indexOf(h) !== -1;
   };
 
-  let body = {};
+  var body = {};
   if (method === 'POST' || method === 'PUT') {
     try { body = await request.json(); } catch (e) {}
   }
 
   if (path === '/api/auth') {
-    const pwd = env.AUTH_PASSWORD;
-    if (!pwd) return Response.json({ error: 'AUTH_PASSWORD env var not set' }, { status: 500 });
-    if (body.password === pwd) {
-      const token = Date.now().toString(36) + Math.random().toString(36).slice(2);
-      let tokens = [];
-      try { const e = await kv.get('auth_tokens'); if (e) tokens = JSON.parse(e); } catch (e) {}
-      tokens.push(token);
-      await kv.put('auth_tokens', JSON.stringify(tokens.slice(-50)));
-      return Response.json({ success: true, token });
+    var pwd = env.AUTH_PASSWORD;
+    if (!pwd) {
+      return new Response(JSON.stringify({ error: 'AUTH_PASSWORD not set' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
-    return Response.json({ success: false }, { status: 401 });
+    if (body.password === pwd) {
+      var token = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      var tokens = [];
+      try {
+        var e = await kv.get('auth_tokens');
+        if (e) tokens = JSON.parse(e);
+      } catch (err) {}
+      tokens.push(token);
+      if (tokens.length > 50) tokens = tokens.slice(tokens.length - 50);
+      await kv.put('auth_tokens', JSON.stringify(tokens));
+      return new Response(JSON.stringify({ success: true, token }), { headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ success: false }), { status: 401, headers: { 'Content-Type': 'application/json' } });
   }
 
   if (path === '/api/categories') {
     if (method === 'GET') {
-      let c = ['未分类'];
-      try { const d = await kv.get('categories'); if (d) c = JSON.parse(d); } catch (e) {}
-      return Response.json({ categories: c });
+      var c = ['未分类'];
+      try {
+        var d = await kv.get('categories');
+        if (d) c = JSON.parse(d);
+      } catch (e) {}
+      return new Response(JSON.stringify({ categories: c }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'POST') {
-      if (!body.name || !body.name.trim()) return Response.json({ error: 'Name required' }, { status: 400 });
-      let c = ['未分类'];
-      try { const d = await kv.get('categories'); if (d) c = JSON.parse(d); } catch (e) {}
-      if (!c.includes(body.name.trim())) { c.push(body.name.trim()); await kv.put('categories', JSON.stringify(c)); }
-      return Response.json({ categories: c });
+      var name = body.name;
+      if (!name || !name.trim()) {
+        return new Response(JSON.stringify({ error: 'Name required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      var c = ['未分类'];
+      try {
+        var d = await kv.get('categories');
+        if (d) c = JSON.parse(d);
+      } catch (e) {}
+      if (c.indexOf(name.trim()) === -1) {
+        c.push(name.trim());
+        await kv.put('categories', JSON.stringify(c));
+      }
+      return new Response(JSON.stringify({ categories: c }), { headers: { 'Content-Type': 'application/json' } });
     }
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
   if (path === '/api/bookmarks') {
     if (method === 'GET') {
-      const b = [];
+      var b = [];
       try {
-        const r = await kv.list({ prefix: 'bookmark:' });
-        for (const k of r.keys) {
-          try { const d = await kv.get(k.key, 'json'); if (d) b.push(d); } catch (e) {}
+        var r = await kv.list({ prefix: 'bookmark:' });
+        if (r && r.keys) {
+          for (var i = 0; i < r.keys.length; i++) {
+            try {
+              var item = await kv.get(r.keys[i].key, 'json');
+              if (item) b.push(item);
+            } catch (e) {}
+          }
         }
       } catch (e) {}
-      b.sort((a, b) => (b.pinned - a.pinned) || (new Date(b.createdAt) - new Date(a.createdAt)));
-      return Response.json({ bookmarks: b });
+      b.sort(function(a, b) {
+        if (a.pinned && !b.pinned) return -1;
+        if (!a.pinned && b.pinned) return 1;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      });
+      return new Response(JSON.stringify({ bookmarks: b }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'POST') {
-      if (!body.title || !body.url) return Response.json({ error: 'Title and URL required' }, { status: 400 });
-      const bm = {
-        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      if (!body.title || !body.url) {
+        return new Response(JSON.stringify({ error: 'Title and URL required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+      }
+      var bm = {
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2),
         title: body.title.trim(),
         url: body.url.trim(),
         description: (body.description || '').trim(),
@@ -85,42 +117,48 @@ export default async function onRequest(context) {
         updatedAt: new Date().toISOString()
       };
       await kv.put('bookmark:' + bm.id, JSON.stringify(bm));
-      return Response.json({ bookmark: bm }, { status: 201 });
+      return new Response(JSON.stringify({ bookmark: bm }), { status: 201, headers: { 'Content-Type': 'application/json' } });
     }
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
-  const m = path.match(/^\/api\/bookmarks\/(.+)$/);
-  if (m) {
-    const id = m[1];
+  if (path.indexOf('/api/bookmarks/') === 0 && path.length > '/api/bookmarks/'.length) {
+    var id = path.substring('/api/bookmarks/'.length);
     if (method === 'GET') {
-      const d = await kv.get('bookmark:' + id, 'json');
-      if (!d) return Response.json({ error: 'Not found' }, { status: 404 });
-      if (d.isPrivate && !(await authCheck())) return Response.json({ error: 'Unauthorized' }, { status: 403 });
-      return Response.json({ bookmark: d });
+      var d = await kv.get('bookmark:' + id, 'json');
+      if (!d) {
+        return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (d.isPrivate && !(await authCheck())) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(JSON.stringify({ bookmark: d }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'PUT') {
-      const e = await kv.get('bookmark:' + id, 'json');
-      if (!e) return Response.json({ error: 'Not found' }, { status: 404 });
-      const u = {
-        ...e,
+      var e = await kv.get('bookmark:' + id, 'json');
+      if (!e) {
+        return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      }
+      var u = {
+        id: e.id,
         title: body.title !== undefined ? body.title.trim() : e.title,
         url: body.url !== undefined ? body.url.trim() : e.url,
         description: body.description !== undefined ? body.description.trim() : e.description,
         category: body.category || e.category,
         pinned: body.pinned !== undefined ? !!body.pinned : e.pinned,
         isPrivate: body.isPrivate !== undefined ? !!body.isPrivate : e.isPrivate,
+        createdAt: e.createdAt,
         updatedAt: new Date().toISOString()
       };
       await kv.put('bookmark:' + id, JSON.stringify(u));
-      return Response.json({ bookmark: u });
+      return new Response(JSON.stringify({ bookmark: u }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'DELETE') {
       await kv.delete('bookmark:' + id);
       return new Response(null, { status: 204 });
     }
-    return Response.json({ error: 'Method not allowed' }, { status: 405 });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
 
-  return Response.json({ error: 'Not found' }, { status: 404 });
+  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
 }
