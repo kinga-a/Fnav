@@ -144,7 +144,7 @@
   .top-bar {
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
-    padding: 1rem 1.5rem;
+    padding: 1.1rem 24px;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -188,6 +188,10 @@
   .top-actions {
     display: flex; gap: 0.5rem;
   }
+  /* 隐藏顶部原有新建按钮 */
+  #addBookmarkBtn {
+    display: none !important;
+  }
   .btn {
     display: inline-flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 1rem;
@@ -209,7 +213,11 @@
   .btn-danger { background: var(--danger); color: #fff; }
   .btn-danger:hover { background: #dc2626; }
   .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
-  .content-area { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+  .content-area {
+    padding: 2rem 24px;
+    max-width: 1440px;
+    margin: 0 auto;
+  }
   .section-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.5rem;
@@ -224,15 +232,15 @@
   .bookmark-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    padding: 1.25rem;
-    box-shadow: var(--shadow);
-    transition: all 0.2s;
+    border-radius: 1rem;
+    padding: 1.4rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+    transition: all 0.2s ease;
     position: relative;
   }
   .bookmark-card:hover {
-    box-shadow: var(--shadow-lg);
-    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -6px rgba(0,0,0,0.08);
+    transform: translateY(-3px);
   }
   .bookmark-card.pinned {
     border-left: 4px solid var(--warning);
@@ -452,6 +460,37 @@
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 右下角悬浮圆形新增按钮 */
+  .fab-add-bookmark {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    font-size: 28px;
+    line-height: 1;
+    box-shadow: 0 6px 16px rgba(79,70,229,0.35);
+    cursor: pointer;
+    z-index: 900;
+    transition: all 0.25s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+  .fab-add-bookmark:hover {
+    background: var(--primary-hover);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(79,70,229,0.4);
+  }
+  .fab-add-bookmark:active {
+    transform: translateY(0);
+  }
 </style>
 <base target="_blank">
 </head>
@@ -516,6 +555,10 @@
     </div>
   </div>
 </div>
+
+<!-- 右下角悬浮圆形加号按钮 -->
+<button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
+
 <!-- 新建/编辑书签弹窗 -->
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -707,7 +750,7 @@ class BookmarkApp {
     document.getElementById('countPinned').textContent = this.bookmarks.filter(b => b.pinned).length;
     document.getElementById('countPrivate').textContent = this.bookmarks.filter(b => b.isPrivate).length;
     if (filtered.length === 0) {
-      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><h3>暂无书签</h3><p>点击右上角"新建书签"添加第一个书签</p></div>`;
+      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><h3>暂无书签</h3><p>点击右下角圆形加号添加第一个书签</p></div>`;
       return;
     }
     grid.innerHTML = filtered.map(b => this.createBookmarkCard(b)).join('');
@@ -973,8 +1016,12 @@ class BookmarkApp {
         this.updateAuthUI();
         await this.loadData();
         this.renderBookmarks();
-      } else { document.getElementById('authError').textContent = '密码错误'; }
-    } catch (e) { document.getElementById('authError').textContent = '验证失败'; }
+      } else {
+        document.getElementById('authError').textContent = '密码错误';
+      }
+    } catch (e) {
+      document.getElementById('authError').textContent = '验证失败';
+    }
   }
   logout() {
     this.authToken = ''; this.isAuthenticated = false;
@@ -1046,4 +1093,5 @@ const app = new BookmarkApp();
 
 
 
-                         
+
+ 
