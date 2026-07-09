@@ -96,11 +96,13 @@
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 0.75rem 0.5rem 2rem;
     border-radius: 0.5rem;
-    cursor: pointer;
+    cursor: grab;
     font-size: 0.875rem;
     color: var(--sidebar-text);
     transition: all 0.2s;
+    user-select: none;
   }
+  .category-item:active { cursor: grabbing; }
   .category-item:hover, .category-item.active {
     color: #fff;
     background: rgba(255,255,255,0.08);
@@ -109,6 +111,15 @@
     width: 8px; height: 8px; border-radius: 50%;
     flex-shrink: 0;
   }
+  .cat-text { flex:1; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cat-count { font-size: 0.75rem; opacity: 0.6; margin-right:4px; }
+  .cat-del-btn {
+    background: transparent; border:none; color:#94a3b8;
+    width:18px; height:18px; border-radius:4px;
+    font-size:14px; cursor:pointer; display:none;
+  }
+  .category-item:hover .cat-del-btn { display:block; }
+  .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
   .add-category-btn {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 0.75rem;
@@ -468,7 +479,7 @@
       </a>
     </div>
     <div class="nav-section">
-      <div class="nav-label">分类</div>
+      <div class="nav-label">分类（可拖动排序）</div>
       <div id="categoryList" class="category-list"></div>
       <div class="add-category-btn" id="addCategoryBtn" onclick="app.showAddCategory()" style="display:none">
         <span>+</span> 新建分类
@@ -505,8 +516,9 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="bookmarkModal">
-  <div class="modal">
+<!-- 新建/编辑书签弹窗 -->
+<div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h3 class="modal-title" id="modalTitle">新建书签</h3>
       <button class="modal-close" onclick="app.closeModal()">&times;</button>
@@ -526,7 +538,6 @@
           <label class="form-label">描述</label>
           <textarea class="form-textarea" id="formDesc" placeholder="可选：添加描述..."></textarea>
         </div>
-        <!-- 仅保留分类下拉选择，移除新分类输入框 -->
         <div class="form-group">
           <label class="form-label">分类</label>
           <select class="form-select" id="formCategory"></select>
@@ -550,8 +561,9 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay auth-modal" id="authModal">
-  <div class="modal">
+<!-- 验证密码弹窗 -->
+<div class="modal-overlay auth-modal" id="authModal" onclick="app.closeAuthModalByOverlay(event)">
+  <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-body">
       <div class="auth-icon">🔐</div>
       <h3 class="auth-title">访问私有书签</h3>
@@ -562,8 +574,9 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="categoryModal">
-  <div class="modal" style="max-width: 400px;">
+<!-- 新建分类弹窗 -->
+<div class="modal-overlay" id="categoryModal" onclick="app.closeCategoryModalByOverlay(event)">
+  <div class="modal" style="max-width: 400px;" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h3 class="modal-title">新建分类</h3>
       <button class="modal-close" onclick="app.closeCategoryModal()">&times;</button>
@@ -580,8 +593,9 @@
     </div>
   </div>
 </div>
-<div class="modal-overlay" id="deleteModal">
-  <div class="modal" style="max-width: 400px;">
+<!-- 删除确认弹窗 -->
+<div class="modal-overlay" id="deleteModal" onclick="app.closeDeleteModalByOverlay(event)">
+  <div class="modal" style="max-width: 400px;" onclick="event.stopPropagation()">
     <div class="modal-body" style="text-align:center; padding: 2rem;">
       <div style="font-size: 3rem; margin-bottom: 1rem;">🗑️</div>
       <h3 style="margin-bottom: 0.5rem;">确认删除?</h3>
@@ -606,6 +620,8 @@ class BookmarkApp {
     this.authToken = localStorage.getItem('bookmark_auth') || '';
     this.deleteTarget = null;
     this.sidebarOpen = false;
+    // 拖拽排序变量
+    this.dragItem = null;
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -714,6 +730,7 @@ class BookmarkApp {
         ${actionHtml}
       </div></div>`;
   }
+  // 渲染分类 + 拖拽绑定 + 删除按钮
   renderCategories() {
     const list = document.getElementById('categoryList');
     const counts = {};
@@ -721,10 +738,113 @@ class BookmarkApp {
     list.innerHTML = this.categories.map(cat => {
       const color = this.getCategoryColor(cat);
       const isActive = this.currentView === cat;
-      return `<div class="category-item ${isActive ? 'active' : ''}" onclick="app.setView('${this.escapeHtml(cat)}')"><span class="cat-color" style="background: ${color}"></span><span>${this.escapeHtml(cat)}</span><span style="margin-left: auto; font-size: 0.75rem; opacity: 0.6;">${counts[cat] || 0}</span></div>`;
+      const itemCount = counts[cat] || 0;
+      const disableDel = cat === '未分类' || itemCount > 0;
+      const delTip = cat === '未分类' ? '默认分类不可删除' : (itemCount>0 ? '分类下存在书签，无法删除' : '删除此分类');
+      return `<div class="category-item ${isActive ? 'active' : ''}" draggable="true" data-cat="${this.escapeHtml(cat)}"
+        ondragstart="app.handleDragStart(event)"
+        ondragover="app.handleDragOver(event)"
+        ondragleave="app.handleDragLeave(event)"
+        ondrop="app.handleDrop(event)"
+        ondragend="app.handleDragEnd(event)">
+        <span class="cat-color" style="background: ${color}"></span>
+        <span class="cat-text" onclick="event.stopPropagation();app.setView('${this.escapeHtml(cat)}')">${this.escapeHtml(cat)}</span>
+        <span class="cat-count">${itemCount}</span>
+        <button class="cat-del-btn" title="${delTip}" onclick="event.stopPropagation();app.deleteCategory('${this.escapeHtml(cat)}')" ${disableDel ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>×</button>
+      </div>`;
     }).join('');
     const select = document.getElementById('formCategory');
     select.innerHTML = this.categories.map(cat => `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`).join('');
+  }
+  // 拖拽排序事件
+  handleDragStart(e) {
+    this.dragItem = e.target;
+    e.target.style.opacity = '0.4';
+    e.dataTransfer.setData('text/plain', e.target.dataset.cat);
+  }
+  handleDragEnd(e) {
+    e.target.style.opacity = '1';
+    this.dragItem = null;
+    document.querySelectorAll('.category-item').forEach(el=>el.style.background='');
+  }
+  handleDragOver(e) {
+    e.preventDefault();
+    if(e.target.classList.contains('category-item') && e.target !== this.dragItem) {
+      e.target.style.background = 'rgba(255,255,255,0.15)';
+    }
+  }
+  handleDragLeave(e) {
+    if(e.target.classList.contains('category-item')) e.target.style.background='';
+  }
+  async handleDrop(e) {
+    e.preventDefault();
+    const dropEl = e.target.closest('.category-item');
+    if(!dropEl || dropEl === this.dragItem) return;
+    const dragName = this.dragItem.dataset.cat;
+    const dropName = dropEl.dataset.cat;
+    if(dragName === dropName) return;
+    // 交换数组位置
+    const arr = [...this.categories];
+    const dragIdx = arr.indexOf(dragName);
+    const dropIdx = arr.indexOf(dropName);
+    arr.splice(dragIdx,1);
+    arr.splice(dropIdx,0,dragName);
+    this.categories = arr;
+    // 保存排序到后端
+    await this.saveCategoryOrder();
+    this.renderCategories();
+  }
+  async saveCategoryOrder() {
+    if(!this.isAuthenticated) {
+      this.showToast('请先验证身份', 'error');
+      return;
+    }
+    try {
+      const res = await fetch(`${API_BASE}/categories/sort`, {
+        method:'PUT',
+        headers: { 'Content-Type':'application/json', ...this.authHeaders() },
+        body: JSON.stringify({ list: this.categories })
+      });
+      if(!res.ok) throw new Error('排序保存失败');
+    } catch(err) {
+      this.showToast(err.message, 'error');
+    }
+  }
+  // 删除分类逻辑
+  async deleteCategory(name) {
+    if(!this.isAuthenticated) {
+      this.showToast('请先验证身份', 'error');
+      this.toggleAuth();
+      return;
+    }
+    if(name === '未分类') {
+      this.showToast('默认分类「未分类」禁止删除', 'error');
+      return;
+    }
+    const hasBookmark = this.bookmarks.some(b=>b.category === name);
+    if(hasBookmark) {
+      this.showToast(`分类「${name}」下存在书签，请先清空书签再删除`, 'error');
+      return;
+    }
+    if(!confirm(`确定要删除空分类「${name}」吗？`)) return;
+    try {
+      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(name)}`, {
+        method:'DELETE',
+        headers: this.authHeaders()
+      });
+      if(res.status === 401) {
+        this.showToast('身份验证失效', 'error');
+        this.toggleAuth();
+        return;
+      }
+      if(!res.ok) throw new Error('删除分类失败');
+      this.showToast(`分类「${name}」已删除`, 'success');
+      await this.loadData();
+      this.renderCategories();
+      this.renderBookmarks();
+    } catch(e) {
+      this.showToast(e.message, 'error');
+    }
   }
   getCategoryColor(category) {
     const colors = ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
@@ -752,6 +872,11 @@ class BookmarkApp {
     document.getElementById('modalTitle').textContent = '编辑书签';
     document.getElementById('bookmarkModal').classList.add('open');
   }
+  // 遮罩点击关闭弹窗
+  closeModalByOverlay(e) { if(e.target.id === 'bookmarkModal') this.closeModal(); }
+  closeAuthModalByOverlay(e) { if(e.target.id === 'authModal') this.closeAuthModal(); }
+  closeCategoryModalByOverlay(e) { if(e.target.id === 'categoryModal') this.closeCategoryModal(); }
+  closeDeleteModalByOverlay(e) { if(e.target.id === 'deleteModal') this.closeDeleteModal(); }
   closeModal() { document.getElementById('bookmarkModal').classList.remove('open'); }
   async saveBookmark() {
     if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
@@ -759,7 +884,6 @@ class BookmarkApp {
     const title = document.getElementById('formTitle').value.trim();
     const url = document.getElementById('formUrl').value.trim();
     const description = document.getElementById('formDesc').value.trim();
-    // 已移除新分类输入框逻辑，直接读取下拉选择
     const category = document.getElementById('formCategory').value;
     const pinned = document.getElementById('formPinned').checked;
     const isPrivate = document.getElementById('formPrivate').checked;
@@ -856,8 +980,11 @@ class BookmarkApp {
     this.authToken = ''; this.isAuthenticated = false;
     localStorage.removeItem('bookmark_auth');
     this.updateAuthUI();
-    this.loadData().then(() => { this.renderBookmarks(); });
-    this.showToast('已退出', 'info');
+    this.loadData().then(() => {
+        this.renderCategories();
+        this.renderBookmarks();
+    });
+    this.showToast('已退出登录', 'info');
   }
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
@@ -883,11 +1010,18 @@ class BookmarkApp {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span> ${this.escapeHtml(message)}`;
+    let icon = 'ℹ️';
+    if (type === 'success') icon = '✅';
+    if (type === 'error') icon = '❌';
+    toast.innerHTML = `<span>${icon}</span> ${this.escapeHtml(message)}`;
     container.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
   }
   escapeHtml(text) {
+    if (!text) return '';
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
@@ -895,11 +1029,21 @@ class BookmarkApp {
   truncateUrl(url) {
     try {
       const u = new URL(url);
-      return u.hostname + (u.pathname.length > 20 ? u.pathname.slice(0, 20) + '...' : u.pathname);
-    } catch { return url.length > 30 ? url.slice(0, 30) + '...' : url; }
+      const host = u.hostname;
+      const path = u.pathname;
+      if (path.length <= 20) return host + path;
+      return host + path.slice(0, 20) + '...';
+    } catch {
+      if (url.length > 30) return url.slice(0, 30) + '...';
+      return url;
+    }
   }
 }
 const app = new BookmarkApp();
 </script>
 </body>
 </html>
+
+
+
+                         
