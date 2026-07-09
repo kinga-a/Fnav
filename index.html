@@ -1,10 +1,4 @@
-export default function onRequest(context) {
-  return new Response(HTML_CONTENT, {
-    headers: { 'Content-Type': 'text/html; charset=utf-8' }
-  });
-}
-
-const HTML_CONTENT = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
@@ -448,6 +442,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 </style>
+<base target="_blank">
 </head>
 <body>
 <div id="app">
@@ -884,4 +879,4 @@ class BookmarkApp {
 const app = new BookmarkApp();
 </script>
 </body>
-</html>`;
+</html>
