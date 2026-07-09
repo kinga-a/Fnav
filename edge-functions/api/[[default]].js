@@ -82,7 +82,33 @@ export default async function onRequest(context) {
     }
     return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
+// 拖拽保存分类排序
+if (path === '/api/categories/sort' && method === 'PUT') {
+  if (!(await authCheck())) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+  if (!body.list || !Array.isArray(body.list)) {
+    return new Response(JSON.stringify({ error: '参数错误' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+  await kv.put('categories', JSON.stringify(body.list));
+  return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+}
 
+// 删除指定分类
+if (path.startsWith('/api/categories/') && method === 'DELETE') {
+  if (!(await authCheck())) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  }
+  const name = decodeURIComponent(path.replace('/api/categories/', ''));
+  if (name === '未分类') {
+    return new Response(JSON.stringify({ error: '默认分类禁止删除' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+  }
+  let catList = await kv.get('categories', 'json') || ['未分类'];
+  catList = catList.filter(item => item !== name);
+  await kv.put('categories', JSON.stringify(catList));
+  return new Response(JSON.stringify({ success: true }), { headers: { 'Content-Type': 'application/json' } });
+}
+  
   if (path === '/api/bookmarks') {
     if (method === 'GET') {
       var b = [];
