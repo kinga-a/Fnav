@@ -1,19 +1,11 @@
 // ============================================
-// EdgeOne Pages Bookmark Manager
-// File: edge-functions/[[default]].js
-// KV Namespace: BOOKMARK_KV (bind in console)
+// EdgeOne Pages Bookmark Manager - Cloud Functions
+// File: cloudone/[[default]].js
+// KV Namespace: BOOKMARK_KV (bind in console, accessed as global variable)
 // Env Var: AUTH_PASSWORD
 // ============================================
 
-// --- Auth Helpers (no btoa/atob in Edge Runtime) ---
-
-function encodeToken(str) {
-  return str.split('').map(c => String.fromCharCode(c.charCodeAt(0) + 1)).join('');
-}
-
-function decodeToken(str) {
-  return str.split('').map(c => String.fromCharCode(c.charCodeAt(0) - 1)).join('');
-}
+// --- Auth Helpers ---
 
 function getCookieValue(cookieStr, name) {
   if (!cookieStr) return null;
@@ -21,12 +13,12 @@ function getCookieValue(cookieStr, name) {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-function isAuthenticated(request, env) {
+function isAuthenticated(request) {
   const cookie = request.headers.get('Cookie') || '';
   const token = getCookieValue(cookie, 'auth_token');
   if (!token) return false;
   try {
-    return decodeToken(token) === (env.AUTH_PASSWORD || '');
+    return atob(token) === (process.env.AUTH_PASSWORD || '');
   } catch {
     return false;
   }
@@ -54,24 +46,22 @@ function unauthorizedResponse() {
 }
 
 function generateId() {
-  const ts = Date.now().toString(36);
-  const rand = Math.random().toString(36).substring(2, 10);
-  return ts + rand;
+  return Date.now().toString(36) + Math.random().toString(36).substring(2, 10);
 }
 
 // --- API Handlers ---
 
-async function handleApiBookmarks(request, env) {
-  const kv = env.BOOKMARK_KV;
-  const authenticated = isAuthenticated(request, env);
+async function handleApiBookmarks(request) {
+  const kv = BOOKMARK_KV;  // Global variable from KV binding
+  const authenticated = isAuthenticated(request);
 
   if (request.method === 'GET') {
-    const result = await kv.list({ prefix: 'bm:' });
+    const result = await kv.list({ prefix: 'bm_' });  // underscore only for KV keys
     const bookmarks = [];
     for (const key of result.keys) {
       const data = await kv.get(key.key, 'json');
       if (data && (!data.isPrivate || authenticated)) {
-        bookmarks.push({ id: key.key.replace('bm:', ''), ...data });
+        bookmarks.push({ id: key.key.replace('bm_', ''), ...data });
       }
     }
     bookmarks.sort((a, b) => {
@@ -96,17 +86,17 @@ async function handleApiBookmarks(request, env) {
       createdAt: Date.now(),
       updatedAt: Date.now()
     };
-    await kv.put('bm:' + id, JSON.stringify(bookmark));
+    await kv.put('bm_' + id, JSON.stringify(bookmark));
     return jsonResponse({ id, ...bookmark });
   }
 
   return jsonResponse({ error: 'Method not allowed' }, 405);
 }
 
-async function handleApiBookmarkDetail(request, env, id) {
-  const kv = env.BOOKMARK_KV;
-  const authenticated = isAuthenticated(request, env);
-  const key = 'bm:' + id;
+async function handleApiBookmarkDetail(request, id) {
+  const kv = BOOKMARK_KV;
+  const authenticated = isAuthenticated(request);
+  const key = 'bm_' + id;
 
   if (request.method === 'GET') {
     const data = await kv.get(key, 'json');
@@ -143,12 +133,12 @@ async function handleApiBookmarkDetail(request, env, id) {
   return jsonResponse({ error: 'Method not allowed' }, 405);
 }
 
-async function handleApiCategories(request, env) {
-  const kv = env.BOOKMARK_KV;
-  const authenticated = isAuthenticated(request, env);
+async function handleApiCategories(request) {
+  const kv = BOOKMARK_KV;
+  const authenticated = isAuthenticated(request);
 
   if (request.method === 'GET') {
-    const result = await kv.list({ prefix: 'bm:' });
+    const result = await kv.list({ prefix: 'bm_' });
     const categories = new Set(['未分类']);
     for (const key of result.keys) {
       const data = await kv.get(key.key, 'json');
@@ -162,15 +152,15 @@ async function handleApiCategories(request, env) {
   return jsonResponse({ error: 'Method not allowed' }, 405);
 }
 
-async function handleApiAuth(request, env) {
+async function handleApiAuth(request) {
   if (request.method === 'POST') {
     const body = await request.json();
-    const password = env.AUTH_PASSWORD || '';
+    const password = process.env.AUTH_PASSWORD || '';
     if (!password) {
       return jsonResponse({ error: 'Auth not configured' }, 500);
     }
     if (body.password === password) {
-      const token = encodeToken(password);
+      const token = btoa(password);
       const cookie = 'auth_token=' + encodeURIComponent(token) + '; Path=/; HttpOnly; SameSite=Strict; Max-Age=86400';
       return jsonResponse({ success: true }, 200, { 'Set-Cookie': cookie });
     }
@@ -185,8 +175,8 @@ async function handleApiAuth(request, env) {
   return jsonResponse({ error: 'Method not allowed' }, 405);
 }
 
-async function handleApiAuthStatus(request, env) {
-  return jsonResponse({ authenticated: isAuthenticated(request, env) });
+async function handleApiAuthStatus(request) {
+  return jsonResponse({ authenticated: isAuthenticated(request) });
 }
 
 // --- HTML Template ---
@@ -377,26 +367,26 @@ $('menuBtn').addEventListener('click',toggleSidebar);$('sidebarOverlay').addEven
 // --- Main Handler ---
 
 export default async function onRequest(context) {
-  const { request, env } = context;
+  const { request } = context;
   const url = new URL(request.url);
   const pathname = url.pathname;
 
   // API routes
   if (pathname === '/api/bookmarks') {
-    return handleApiBookmarks(request, env);
+    return handleApiBookmarks(request);
   }
   if (pathname.startsWith('/api/bookmarks/')) {
     const id = pathname.replace('/api/bookmarks/', '');
-    return handleApiBookmarkDetail(request, env, id);
+    return handleApiBookmarkDetail(request, id);
   }
   if (pathname === '/api/categories') {
-    return handleApiCategories(request, env);
+    return handleApiCategories(request);
   }
   if (pathname === '/api/auth') {
-    return handleApiAuth(request, env);
+    return handleApiAuth(request);
   }
   if (pathname === '/api/auth/status') {
-    return handleApiAuthStatus(request, env);
+    return handleApiAuthStatus(request);
   }
 
   // SPA fallback - serve HTML for all other routes
