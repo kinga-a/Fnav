@@ -703,12 +703,19 @@ class BookmarkApp {
   createBookmarkCard(b) {
     const isLocked = b.isPrivate && !this.isAuthenticated;
     const categoryColor = this.getCategoryColor(b.category);
+    let actionHtml = '';
+    if (!isLocked) {
+      actionHtml = `<div class="card-actions">
+        <button onclick="app.editBookmark('${b.id}')" title="编辑">✏️</button>
+        <button class="delete" onclick="app.deleteBookmark('${b.id}')" title="删除">🗑️</button>
+      </div>`;
+    }
     return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''} ${isLocked ? 'private-locked' : ''}" data-id="${b.id}">
       <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
         <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
       </div><p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
-      <div class="card-footer">${isLocked ? `<span class="card-link" style="color: var(--text-muted); cursor: not-allowed;">🔒 私有内容</span>` : `<a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener" class="card-link">🔗 ${this.truncateUrl(b.url)}</a>`}
-        <div class="card-actions"><button onclick="app.editBookmark('${b.id}')" title="编辑">✏️</button><button class="delete" onclick="app.deleteBookmark('${b.id}')" title="删除">🗑️</button></div>
+      <div class="card-footer>${isLocked ? `<span class="card-link" style="color: var(--text-muted); cursor: not-allowed;">🔒 私有内容</span>` : `<a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener" class="card-link">🔗 ${this.truncateUrl(b.url)}</a>`}
+        ${actionHtml}
       </div></div>`;
   }
   renderCategories() {
@@ -861,16 +868,19 @@ class BookmarkApp {
     const status = document.getElementById('authStatus');
     const addBtn = document.getElementById('addBookmarkBtn');
     const addCatBtn = document.getElementById('addCategoryBtn');
+    const navPrivate = document.getElementById('navPrivate');
     if (this.isAuthenticated) {
       icon.textContent = '🔓';
       status.textContent = '已验证';
       if (addBtn) addBtn.style.display = 'inline-flex';
       if (addCatBtn) addCatBtn.style.display = 'flex';
+      navPrivate.style.display = 'flex';
     } else {
       icon.textContent = '🔒';
       status.textContent = '未验证';
       if (addBtn) addBtn.style.display = 'none';
       if (addCatBtn) addCatBtn.style.display = 'none';
+      navPrivate.style.display = 'none';
     }
   }
   showToast(message, type = 'info') {
