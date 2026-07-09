@@ -505,7 +505,6 @@ select {
   }
 }
 </style>
-<base target="_blank">
 </head>
 <body>
 <div id="app">
@@ -778,25 +777,51 @@ class BookmarkApp {
         <button class="delete" onclick="app.deleteBookmark('${b.id}')" title="删除">🗑️</button>
       </div>`;
     }
-    return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''} ${isLocked ? 'private-locked' : ''}" data-id="${b.id}">
+    if (isLocked) {
+      return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''} private-locked" data-id="${b.id}">
       <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
         <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
-      </div><p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
-      <div class="card-footer>${isLocked ? `<span class="card-link" style="color: var(--text-muted); cursor: not-allowed;">🔒 私有内容</span>` : `<a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener" class="card-link">🔗 ${this.truncateUrl(b.url)}</a>`}
+      </div>
+      <p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
+      <div class="card-footer">
+        <span class="card-link" style="color: var(--text-muted); cursor: not-allowed;">🔒 私有内容</span>
         ${actionHtml}
-      </div></div>`;
+      </div>
+      </div>`;
+    }
+    return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''}" data-id="${b.id}">
+      <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
+        <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
+      </div>
+      <p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
+      <div class="card-footer">
+        <a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener noreferrer" class="card-link">🔗 ${this.truncateUrl(b.url)}</a>
+        ${actionHtml}
+      </div>
+      </div>`;
   }
-  // 渲染分类 + 拖拽绑定 + 删除按钮
+  // 渲染分类 + 拖拽绑定 + 删除按钮（修复：仅当前分类有书签才禁用自身删除按钮，不影响其他分类）
   renderCategories() {
     const list = document.getElementById('categoryList');
     const counts = {};
-    this.bookmarks.forEach(b => { counts[b.category] = (counts[b.category] || 0) + 1; });
+    this.bookmarks.forEach(b => {
+      if (!counts[b.category]) counts[b.category] = 0;
+      counts[b.category] += 1;
+    });
     list.innerHTML = this.categories.map(cat => {
       const color = this.getCategoryColor(cat);
       const isActive = this.currentView === cat;
       const itemCount = counts[cat] || 0;
+      // 仅两个条件禁用：1、默认未分类  2、当前这个分类自己有书签
       const disableDel = cat === '未分类' || itemCount > 0;
-      const delTip = cat === '未分类' ? '默认分类不可删除' : (itemCount>0 ? '分类下存在书签，无法删除' : '删除此分类');
+      let delTip = '';
+      if (cat === '未分类') {
+        delTip = '默认分类不可删除';
+      } else if (itemCount > 0) {
+        delTip = `该分类下存在${itemCount}个书签，无法删除`;
+      } else {
+        delTip = '删除此空分类';
+      }
       return `<div class="category-item ${isActive ? 'active' : ''}" draggable="true" data-cat="${this.escapeHtml(cat)}"
         ondragstart="app.handleDragStart(event)"
         ondragover="app.handleDragOver(event)"
@@ -806,7 +831,7 @@ class BookmarkApp {
         <span class="cat-color" style="background: ${color}"></span>
         <span class="cat-text" onclick="event.stopPropagation();app.setView('${this.escapeHtml(cat)}')">${this.escapeHtml(cat)}</span>
         <span class="cat-count">${itemCount}</span>
-        <button class="cat-del-btn" title="${delTip}" onclick="event.stopPropagation();app.deleteCategory('${this.escapeHtml(cat)}')" ${disableDel ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>×</button>
+        <button class="cat-del-btn" title="${this.escapeHtml(delTip)}" onclick="event.stopPropagation();app.deleteCategory('${this.escapeHtml(cat)}')" ${disableDel ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>×</button>
       </div>`;
     }).join('');
     const select = document.getElementById('formCategory');
@@ -1103,8 +1128,3 @@ const app = new BookmarkApp();
 </script>
 </body>
 </html>
-
-
-
-
- 
