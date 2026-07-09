@@ -49,7 +49,6 @@ export default async function onRequest(context) {
     return tokens.includes(authHeader);
   };
 
-  // Auth
   if (path === '/api/auth' && method === 'POST') {
     const { password } = await request.json();
     const correctPassword = env.AUTH_PASSWORD;
@@ -68,7 +67,6 @@ export default async function onRequest(context) {
     return jsonResponse({ success: false }, 401);
   }
 
-  // Categories
   if (path === '/api/categories') {
     if (method === 'GET') {
       const data = await kv.get('categories');
@@ -88,7 +86,6 @@ export default async function onRequest(context) {
     }
   }
 
-  // Bookmarks list
   if (path === '/api/bookmarks') {
     if (method === 'GET') {
       const result = await kv.list({ prefix: 'bookmark:' });
@@ -129,7 +126,6 @@ export default async function onRequest(context) {
     }
   }
 
-  // Single bookmark
   const bookmarkMatch = path.match(/^\/api\/bookmarks\/(.+)$/);
   if (bookmarkMatch) {
     const id = bookmarkMatch[1];
