@@ -188,7 +188,6 @@
   .top-actions {
     display: flex; gap: 0.5rem;
   }
-  /* 隐藏顶部原有新建按钮 */
   #addBookmarkBtn {
     display: none !important;
   }
@@ -461,7 +460,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* 右下角悬浮圆形新增按钮 */
   .fab-add-bookmark {
     position: fixed;
     right: 24px;
@@ -491,14 +489,12 @@
   .fab-add-bookmark:active {
     transform: translateY(0);
   }
- /* 修复iOS Safari输入框自动放大 */
 input,
 textarea,
 select {
   font-size: 16px !important;
   -webkit-text-size-adjust: 100%;
 }
-/* 仅苹果设备生效，不影响桌面端视觉 */
 @supports (-webkit-touch-callout: none) {
   .form-hint {
     font-size: 14px;
@@ -567,11 +563,7 @@ select {
     </div>
   </div>
 </div>
-
-<!-- 右下角悬浮圆形加号按钮 -->
 <button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
-
-<!-- 新建/编辑书签弹窗 -->
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -616,7 +608,6 @@ select {
     </div>
   </div>
 </div>
-<!-- 验证密码弹窗 -->
 <div class="modal-overlay auth-modal" id="authModal" onclick="app.closeAuthModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
     <div class="modal-body">
@@ -629,7 +620,6 @@ select {
     </div>
   </div>
 </div>
-<!-- 新建分类弹窗 -->
 <div class="modal-overlay" id="categoryModal" onclick="app.closeCategoryModalByOverlay(event)">
   <div class="modal" style="max-width: 400px;" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -648,7 +638,6 @@ select {
     </div>
   </div>
 </div>
-<!-- 删除确认弹窗 -->
 <div class="modal-overlay" id="deleteModal" onclick="app.closeDeleteModalByOverlay(event)">
   <div class="modal" style="max-width: 400px;" onclick="event.stopPropagation()">
     <div class="modal-body" style="text-align:center; padding: 2rem;">
@@ -675,7 +664,6 @@ class BookmarkApp {
     this.authToken = localStorage.getItem('bookmark_auth') || '';
     this.deleteTarget = null;
     this.sidebarOpen = false;
-    // 拖拽排序变量
     this.dragItem = null;
     if (this.authToken) this.isAuthenticated = true;
     this.init();
@@ -706,7 +694,11 @@ class BookmarkApp {
     } catch (e) { this.showToast('加载数据失败', 'error'); console.error(e); }
   }
   get authHeaders() {
-    return () => this.authToken ? { 'X-Auth-Token': this.authToken } : {};
+    return () => {
+      const headers = {};
+      if (this.authToken) headers['Authorization'] = `Bearer ${this.authToken}`;
+      return headers;
+    };
   }
   toggleSidebar() {
     this.sidebarOpen = !this.sidebarOpen;
@@ -800,7 +792,6 @@ class BookmarkApp {
       </div>
       </div>`;
   }
-  // 渲染分类 + 拖拽绑定 + 删除按钮（修复：仅当前分类有书签才禁用自身删除按钮，不影响其他分类）
   renderCategories() {
     const list = document.getElementById('categoryList');
     const counts = {};
@@ -812,16 +803,11 @@ class BookmarkApp {
       const color = this.getCategoryColor(cat);
       const isActive = this.currentView === cat;
       const itemCount = counts[cat] || 0;
-      // 仅两个条件禁用：1、默认未分类  2、当前这个分类自己有书签
       const disableDel = cat === '未分类' || itemCount > 0;
       let delTip = '';
-      if (cat === '未分类') {
-        delTip = '默认分类不可删除';
-      } else if (itemCount > 0) {
-        delTip = `该分类下存在${itemCount}个书签，无法删除`;
-      } else {
-        delTip = '删除此空分类';
-      }
+      if (cat === '未分类') delTip = '默认分类不可删除';
+      else if (itemCount > 0) delTip = `该分类下存在${itemCount}个书签，无法删除`;
+      else delTip = '删除此空分类';
       return `<div class="category-item ${isActive ? 'active' : ''}" draggable="true" data-cat="${this.escapeHtml(cat)}"
         ondragstart="app.handleDragStart(event)"
         ondragover="app.handleDragOver(event)"
@@ -837,7 +823,6 @@ class BookmarkApp {
     const select = document.getElementById('formCategory');
     select.innerHTML = this.categories.map(cat => `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`).join('');
   }
-  // 拖拽排序事件
   handleDragStart(e) {
     this.dragItem = e.target;
     e.target.style.opacity = '0.4';
@@ -864,14 +849,12 @@ class BookmarkApp {
     const dragName = this.dragItem.dataset.cat;
     const dropName = dropEl.dataset.cat;
     if(dragName === dropName) return;
-    // 交换数组位置
     const arr = [...this.categories];
     const dragIdx = arr.indexOf(dragName);
     const dropIdx = arr.indexOf(dropName);
     arr.splice(dragIdx,1);
     arr.splice(dropIdx,0,dragName);
     this.categories = arr;
-    // 保存排序到后端
     await this.saveCategoryOrder();
     this.renderCategories();
   }
@@ -891,7 +874,6 @@ class BookmarkApp {
       this.showToast(err.message, 'error');
     }
   }
-  // 删除分类逻辑
   async deleteCategory(name) {
     if(!this.isAuthenticated) {
       this.showToast('请先验证身份', 'error');
@@ -953,7 +935,6 @@ class BookmarkApp {
     document.getElementById('modalTitle').textContent = '编辑书签';
     document.getElementById('bookmarkModal').classList.add('open');
   }
-  // 遮罩点击关闭弹窗
   closeModalByOverlay(e) { if(e.target.id === 'bookmarkModal') this.closeModal(); }
   closeAuthModalByOverlay(e) { if(e.target.id === 'authModal') this.closeAuthModal(); }
   closeCategoryModalByOverlay(e) { if(e.target.id === 'categoryModal') this.closeCategoryModal(); }
