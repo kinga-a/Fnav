@@ -224,10 +224,10 @@
   .section-title { font-size: 1.5rem; font-weight: 700; }
   .section-desc { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
   .bookmark-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1rem;
-  }
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
   .bookmark-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
@@ -444,7 +444,21 @@
     to { transform: translateX(0); opacity: 1; }
   }
   @media (max-width: 768px) {
-    .bookmark-grid { grid-template-columns: 1fr; }
+     .bookmark-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+  .bookmark-card {
+    padding: 0.7rem !important;
+  }
+  .bookmark-card:hover {
+    transform: none;
+  }
+  .form-row { grid-template-columns: 1fr; }
+  .top-bar { padding: 0.75rem 1rem; }
+  .search-box { max-width: none; }
+  .card-actions { opacity: 1; }
+}
     .form-row { grid-template-columns: 1fr; }
     .top-bar { padding: 0.75rem 1rem; }
     .search-box { max-width: none; }
@@ -785,16 +799,16 @@ class BookmarkApp {
       </div>
       </div>`;
     }
-    return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''}" data-id="${b.id}">
+    return `<a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener noreferrer" class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''}" data-id="${b.id}">
       <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
         <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
       </div>
       <p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
       <div class="card-footer">
-        <a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener noreferrer" class="card-link">🔗 ${this.truncateUrl(b.url)}</a>
+        <span class="card-link">🔗 ${this.truncateUrl(b.url)}</span>
         ${actionHtml}
       </div>
-      </div>`;
+      </a>`;
   }
   // 渲染分类 + 拖拽绑定 + 删除按钮（修复：仅当前分类有书签才禁用自身删除按钮，不影响其他分类）
   renderCategories() {
