@@ -1,164 +1,899 @@
-export default async function onRequest(context) {
-  var request = context.request;
-  var env = context.env;
-  var url = new URL(request.url);
-  var path = url.pathname;
-  var method = request.method;
-
-  if (method === 'OPTIONS') {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Auth-Token'
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bookmark Manager</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #4f46e5;
+    --primary-hover: #4338ca;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --bg: #f8fafc;
+    --card-bg: #ffffff;
+    --sidebar-bg: #1e293b;
+    --sidebar-text: #cbd5e1;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .app-layout { display: flex; min-height: 100vh; }
+  .sidebar {
+    width: 260px;
+    background: var(--sidebar-bg);
+    color: var(--sidebar-text);
+    position: fixed;
+    left: 0; top: 0; bottom: 0;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+    overflow-y: auto;
+    padding: 1.5rem 1rem;
+  }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 999;
+    opacity: 0; visibility: hidden;
+    transition: all 0.3s;
+  }
+  .sidebar-overlay.open { opacity: 1; visibility: visible; }
+  .sidebar-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .sidebar-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
+  .sidebar-close {
+    background: none; border: none; color: var(--sidebar-text);
+    font-size: 1.5rem; cursor: pointer; padding: 0.25rem;
+  }
+  .sidebar-close:hover { color: #fff; }
+  .nav-section { margin-bottom: 1.5rem; }
+  .nav-label {
+    font-size: 0.75rem; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #94a3b8;
+    margin-bottom: 0.75rem; padding-left: 0.75rem;
+  }
+  .nav-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.625rem 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.9375rem;
+  }
+  .nav-item:hover, .nav-item.active {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+  .nav-item .icon { width: 20px; text-align: center; }
+  .nav-item .count {
+    margin-left: auto;
+    background: rgba(255,255,255,0.15);
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+  }
+  .category-list { margin-left: 0.5rem; }
+  .category-item {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.75rem 0.5rem 2rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: var(--sidebar-text);
+    transition: all 0.2s;
+  }
+  .category-item:hover, .category-item.active {
+    color: #fff;
+    background: rgba(255,255,255,0.08);
+  }
+  .category-item .cat-color {
+    width: 8px; height: 8px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .add-category-btn {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    color: #94a3b8;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border: 1px dashed rgba(255,255,255,0.2);
+    border-radius: 0.5rem;
+    margin-top: 0.5rem;
+    transition: all 0.2s;
+  }
+  .add-category-btn:hover {
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
+  }
+  .main-content {
+    flex: 1;
+    margin-left: 0;
+    transition: margin-left 0.3s;
+    min-height: 100vh;
+  }
+  .top-bar {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .menu-btn {
+    background: none; border: none;
+    font-size: 1.5rem; cursor: pointer;
+    color: var(--text); padding: 0.25rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .search-box {
+    flex: 1;
+    max-width: 600px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .search-box input {
+    width: 100%;
+    padding: 0.625rem 1rem 0.625rem 2.5rem;
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    font-size: 0.9375rem;
+    background: var(--bg);
+    transition: all 0.2s;
+  }
+  .search-box input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+  }
+  .search-box .search-icon {
+    position: absolute;
+    left: 0.875rem; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+  }
+  .top-actions {
+    display: flex; gap: 0.5rem;
+  }
+  .btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem; font-weight: 500;
+    cursor: pointer; border: none;
+    transition: all 0.2s;
+    text-decoration: none;
+  }
+  .btn-primary {
+    background: var(--primary); color: #fff;
+  }
+  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-ghost {
+    background: transparent; color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .btn-ghost:hover { background: var(--bg); color: var(--text); }
+  .btn-danger { background: var(--danger); color: #fff; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+  .content-area { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .section-title { font-size: 1.5rem; font-weight: 700; }
+  .section-desc { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+  .bookmark-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1rem;
+  }
+  .bookmark-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    box-shadow: var(--shadow);
+    transition: all 0.2s;
+    position: relative;
+  }
+  .bookmark-card:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+  .bookmark-card.pinned {
+    border-left: 4px solid var(--warning);
+  }
+  .bookmark-card.private {
+    border-left: 4px solid var(--primary);
+  }
+  .bookmark-card.private-locked {
+    border-left: 4px solid var(--danger);
+    opacity: 0.7;
+  }
+  .bookmark-card.private-locked .card-title,
+  .bookmark-card.private-locked .card-desc,
+  .bookmark-card.private-locked .card-link {
+    filter: blur(4px);
+    user-select: none;
+  }
+  .card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .card-title {
+    font-size: 1rem; font-weight: 600;
+    color: var(--text); word-break: break-word;
+    padding-right: 0.5rem;
+  }
+  .card-badges { display: flex; gap: 0.375rem; flex-shrink: 0; }
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem; font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-pinned { background: #fef3c7; color: #92400e; }
+  .badge-private { background: #e0e7ff; color: #3730a3; }
+  .badge-category {
+    background: var(--bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+  }
+  .card-desc {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .card-footer {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .card-link {
+    display: inline-flex; align-items: center; gap: 0.375rem;
+    color: var(--primary);
+    font-size: 0.875rem; font-weight: 500;
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .card-link:hover { text-decoration: underline; }
+  .card-actions {
+    display: flex; gap: 0.375rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .bookmark-card:hover .card-actions { opacity: 1; }
+  .card-actions button {
+    background: none; border: none;
+    color: var(--text-muted);
+    cursor: pointer; padding: 0.25rem;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+  }
+  .card-actions button:hover { background: var(--bg); color: var(--text); }
+  .card-actions button.delete:hover { color: var(--danger); }
+  .empty-state {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-muted);
+  }
+  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
+  .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 2000;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden;
+    transition: all 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+  .modal {
+    background: var(--card-bg);
+    border-radius: 1rem;
+    width: 90%; max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.95);
+    transition: transform 0.3s;
+  }
+  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .modal-title { font-size: 1.125rem; font-weight: 600; }
+  .modal-close {
+    background: none; border: none;
+    font-size: 1.5rem; color: var(--text-muted);
+    cursor: pointer;
+  }
+  .modal-body { padding: 1.5rem; }
+  .form-group { margin-bottom: 1.25rem; }
+  .form-label {
+    display: block;
+    font-size: 0.875rem; font-weight: 500;
+    margin-bottom: 0.375rem;
+  }
+  .form-label .required { color: var(--danger); }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 0.625rem 0.875rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 0.9375rem;
+    background: var(--bg);
+    transition: all 0.2s;
+    font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+  }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .checkbox-group {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.5rem 0;
+  }
+  .checkbox-group input[type="checkbox"] {
+    width: 1.125rem; height: 1.125rem;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+  .checkbox-group label { cursor: pointer; font-size: 0.875rem; }
+  .modal-footer {
+    padding: 1rem 1.5rem 1.5rem;
+    display: flex; justify-content: flex-end; gap: 0.75rem;
+  }
+  .auth-modal .modal { max-width: 400px; text-align: center; }
+  .auth-modal .modal-body { padding: 2rem; }
+  .auth-icon { font-size: 3rem; margin-bottom: 1rem; }
+  .auth-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
+  .auth-desc { color: var(--text-muted); margin-bottom: 1.5rem; }
+  .auth-input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    text-align: center;
+  }
+  .auth-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+  }
+  .auth-error {
+    color: var(--danger);
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+    min-height: 1.25rem;
+  }
+  .toast-container {
+    position: fixed;
+    bottom: 1.5rem; right: 1.5rem;
+    z-index: 3000;
+    display: flex; flex-direction: column; gap: 0.5rem;
+  }
+  .toast {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.875rem 1.25rem;
+    box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 0.75rem;
+    animation: slideIn 0.3s ease;
+    min-width: 280px;
+  }
+  .toast.success { border-left: 4px solid var(--success); }
+  .toast.error { border-left: 4px solid var(--danger); }
+  .toast.info { border-left: 4px solid var(--primary); }
+  @keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  @media (max-width: 768px) {
+    .bookmark-grid { grid-template-columns: 1fr; }
+    .form-row { grid-template-columns: 1fr; }
+    .top-bar { padding: 0.75rem 1rem; }
+    .search-box { max-width: none; }
+    .card-actions { opacity: 1; }
+  }
+  .loading-spinner {
+    display: inline-block;
+    width: 1.5rem; height: 1.5rem;
+    border: 2px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<base target="_blank">
+</head>
+<body>
+<div id="app">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">📚 书签管理</span>
+      <button class="sidebar-close" onclick="app.toggleSidebar()">&times;</button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">视图</div>
+      <a class="nav-item" data-view="all" onclick="app.setView('all')">
+        <span class="icon">🏠</span> 全部书签
+        <span class="count" id="countAll">0</span>
+      </a>
+      <a class="nav-item" data-view="pinned" onclick="app.setView('pinned')">
+        <span class="icon">📌</span> 置顶书签
+        <span class="count" id="countPinned">0</span>
+      </a>
+      <a class="nav-item" data-view="private" onclick="app.setView('private')">
+        <span class="icon">🔒</span> 私有书签
+        <span class="count" id="countPrivate">0</span>
+      </a>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">分类</div>
+      <div id="categoryList" class="category-list"></div>
+      <div class="add-category-btn" id="addCategoryBtn" onclick="app.showAddCategory()" style="display:none">
+        <span>+</span> 新建分类
+      </div>
+    </div>
+    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+      <div class="nav-item" onclick="app.toggleAuth()">
+        <span class="icon" id="authIcon">🔓</span>
+        <span id="authStatus">未验证</span>
+      </div>
+    </div>
+  </aside>
+  <div class="main-content">
+    <div class="top-bar">
+      <button class="menu-btn" onclick="app.toggleSidebar()">☰</button>
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
+      </div>
+      <div class="top-actions" id="topActions">
+        <button class="btn btn-primary" id="addBookmarkBtn" onclick="app.showAddModal()">
+          <span>+</span> 新建书签
+        </button>
+      </div>
+    </div>
+    <div class="content-area">
+      <div class="section-header">
+        <div>
+          <h1 class="section-title" id="pageTitle">全部书签</h1>
+          <p class="section-desc" id="pageDesc">浏览所有书签</p>
+        </div>
+      </div>
+      <div id="bookmarkGrid" class="bookmark-grid"></div>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="bookmarkModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 class="modal-title" id="modalTitle">新建书签</h3>
+      <button class="modal-close" onclick="app.closeModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="bookmarkForm" onsubmit="app.saveBookmark(event)">
+        <input type="hidden" id="bookmarkId">
+        <div class="form-group">
+          <label class="form-label">标题 <span class="required">*</span></label>
+          <input type="text" class="form-input" id="formTitle" required placeholder="输入书签标题">
+        </div>
+        <div class="form-group">
+          <label class="form-label">链接 <span class="required">*</span></label>
+          <input type="url" class="form-input" id="formUrl" required placeholder="https://example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <textarea class="form-textarea" id="formDesc" placeholder="可选：添加描述..."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">分类</label>
+            <select class="form-select" id="formCategory"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">新分类</label>
+            <input type="text" class="form-input" id="formNewCategory" placeholder="或输入新分类">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="checkbox-group">
+            <input type="checkbox" id="formPinned">
+            <label for="formPinned">📌 置顶</label>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="formPrivate">
+            <label for="formPrivate">🔒 私有</label>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="app.closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="app.saveBookmark()">保存</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay auth-modal" id="authModal">
+  <div class="modal">
+    <div class="modal-body">
+      <div class="auth-icon">🔐</div>
+      <h3 class="auth-title">访问私有书签</h3>
+      <p class="auth-desc">请输入密码以查看私有书签内容</p>
+      <input type="password" class="auth-input" id="authPassword" placeholder="输入密码" onkeydown="if(event.key==='Enter')app.doAuth()">
+      <div class="auth-error" id="authError"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="app.doAuth()">验证</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="categoryModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-header">
+      <h3 class="modal-title">新建分类</h3>
+      <button class="modal-close" onclick="app.closeCategoryModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">分类名称</label>
+        <input type="text" class="form-input" id="newCategoryName" placeholder="输入分类名称" onkeydown="if(event.key==='Enter')app.addCategory()">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="app.closeCategoryModal()">取消</button>
+      <button class="btn btn-primary" onclick="app.addCategory()">创建</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="deleteModal">
+  <div class="modal" style="max-width: 400px;">
+    <div class="modal-body" style="text-align:center; padding: 2rem;">
+      <div style="font-size: 3rem; margin-bottom: 1rem;">🗑️</div>
+      <h3 style="margin-bottom: 0.5rem;">确认删除?</h3>
+      <p style="color: var(--text-muted); margin-bottom: 1.5rem;">此操作无法撤销</p>
+      <div style="display: flex; gap: 0.75rem; justify-content: center;">
+        <button class="btn btn-ghost" onclick="app.closeDeleteModal()">取消</button>
+        <button class="btn btn-danger" onclick="app.confirmDelete()">删除</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="toast-container" id="toastContainer"></div>
+<script>
+const API_BASE = '/api';
+class BookmarkApp {
+  constructor() {
+    this.bookmarks = [];
+    this.categories = [];
+    this.currentView = 'all';
+    this.searchQuery = '';
+    this.isAuthenticated = false;
+    this.authToken = localStorage.getItem('bookmark_auth') || '';
+    this.deleteTarget = null;
+    this.sidebarOpen = false;
+    if (this.authToken) this.isAuthenticated = true;
+    this.init();
+  }
+  async init() {
+    await this.loadData();
+    this.renderCategories();
+    this.renderBookmarks();
+    this.updateAuthUI();
+    document.getElementById('sidebarOverlay').addEventListener('click', () => this.toggleSidebar());
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.closeModal(); this.closeAuthModal(); this.closeCategoryModal(); this.closeDeleteModal();
+        if (this.sidebarOpen) this.toggleSidebar();
       }
+      if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('searchInput').focus(); }
+      if (e.ctrlKey && e.key === 'n') { e.preventDefault(); this.showAddModal(); }
     });
   }
-
-  var kv = BOOKMARK_KV;
-
-  var authCheck = async function() {
-    var h = request.headers.get('X-Auth-Token');
-    if (!h) return false;
-    var s = await kv.get('auth_tokens');
-    if (!s) return false;
-    var tokens = JSON.parse(s);
-    return tokens.indexOf(h) !== -1;
-  };
-
-  var body = {};
-  if (method === 'POST' || method === 'PUT') {
-    try { body = await request.json(); } catch (e) {}
+  async loadData() {
+    try {
+      const [bookmarksRes, categoriesRes] = await Promise.all([
+        fetch(API_BASE + '/bookmarks', { headers: this.authHeaders() }),
+        fetch(API_BASE + '/categories')
+      ]);
+      if (bookmarksRes.ok) { const data = await bookmarksRes.json(); this.bookmarks = data.bookmarks || []; }
+      if (categoriesRes.ok) { const data = await categoriesRes.json(); this.categories = data.categories || ['未分类']; }
+    } catch (e) { this.showToast('加载数据失败', 'error'); console.error(e); }
   }
-
-  if (path === '/api/auth') {
-    var pwd = env.AUTH_PASSWORD;
-    if (!pwd) {
-      return new Response(JSON.stringify({ error: 'AUTH_PASSWORD not set' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
-    }
-    if (body.password === pwd) {
-      var token = Date.now().toString(36) + Math.random().toString(36).substr(2);
-      var tokens = [];
-      try {
-        var e = await kv.get('auth_tokens');
-        if (e) tokens = JSON.parse(e);
-      } catch (err) {}
-      tokens.push(token);
-      if (tokens.length > 50) tokens = tokens.slice(tokens.length - 50);
-      await kv.put('auth_tokens', JSON.stringify(tokens));
-      return new Response(JSON.stringify({ success: true, token }), { headers: { 'Content-Type': 'application/json' } });
-    }
-    return new Response(JSON.stringify({ success: false }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+  get authHeaders() {
+    return () => this.authToken ? { 'X-Auth-Token': this.authToken } : {};
   }
-
-  if (path === '/api/categories') {
-    if (method === 'GET') {
-      var c = ['未分类'];
-      try {
-        var d = await kv.get('categories');
-        if (d) c = JSON.parse(d);
-      } catch (e) {}
-      return new Response(JSON.stringify({ categories: c }), { headers: { 'Content-Type': 'application/json' } });
-    }
-    if (method === 'POST') {
-      var name = body.name;
-      if (!name || !name.trim()) {
-        return new Response(JSON.stringify({ error: 'Name required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-      }
-      var c = ['未分类'];
-      try {
-        var d = await kv.get('categories');
-        if (d) c = JSON.parse(d);
-      } catch (e) {}
-      if (c.indexOf(name.trim()) === -1) {
-        c.push(name.trim());
-        await kv.put('categories', JSON.stringify(c));
-      }
-      return new Response(JSON.stringify({ categories: c }), { headers: { 'Content-Type': 'application/json' } });
-    }
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  toggleSidebar() {
+    this.sidebarOpen = !this.sidebarOpen;
+    document.getElementById('sidebar').classList.toggle('open', this.sidebarOpen);
+    document.getElementById('sidebarOverlay').classList.toggle('open', this.sidebarOpen);
   }
-
-  if (path === '/api/bookmarks') {
-    if (method === 'GET') {
-      var b = [];
-      try {
-        var r = await kv.list({ prefix: 'bookmark:' });
-        if (r && r.keys) {
-          for (var i = 0; i < r.keys.length; i++) {
-            try {
-              var item = await kv.get(r.keys[i].key, 'json');
-              if (item) b.push(item);
-            } catch (e) {}
-          }
-        }
-      } catch (e) {}
-      b.sort(function(a, b) {
-        if (a.pinned && !b.pinned) return -1;
-        if (!a.pinned && b.pinned) return 1;
-        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  setView(view) {
+    this.currentView = view;
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
+    const viewMap = {
+      'all': { title: '全部书签', desc: '浏览所有书签' },
+      'pinned': { title: '置顶书签', desc: '查看置顶的书签' },
+      'private': { title: '私有书签', desc: '查看私有书签' }
+    };
+    if (viewMap[view]) {
+      document.querySelector(`[data-view="${view}"]`).classList.add('active');
+      document.getElementById('pageTitle').textContent = viewMap[view].title;
+      document.getElementById('pageDesc').textContent = viewMap[view].desc;
+    } else {
+      document.getElementById('pageTitle').textContent = view;
+      document.getElementById('pageDesc').textContent = `${view} 分类下的书签`;
+    }
+    this.renderBookmarks();
+    if (window.innerWidth < 768) this.toggleSidebar();
+  }
+  handleSearch(query) {
+    this.searchQuery = query.toLowerCase().trim();
+    this.renderBookmarks();
+  }
+  getFilteredBookmarks() {
+    let filtered = this.bookmarks;
+    if (this.currentView === 'pinned') filtered = filtered.filter(b => b.pinned);
+    else if (this.currentView === 'private') filtered = filtered.filter(b => b.isPrivate);
+    else if (this.categories.includes(this.currentView)) filtered = filtered.filter(b => b.category === this.currentView);
+    if (this.searchQuery) {
+      filtered = filtered.filter(b =>
+        b.title.toLowerCase().includes(this.searchQuery) ||
+        b.url.toLowerCase().includes(this.searchQuery) ||
+        (b.description && b.description.toLowerCase().includes(this.searchQuery))
+      );
+    }
+    return filtered.sort((a, b) => {
+      if (a.pinned && !b.pinned) return -1;
+      if (!a.pinned && b.pinned) return 1;
+      return new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }
+  renderBookmarks() {
+    const grid = document.getElementById('bookmarkGrid');
+    const filtered = this.getFilteredBookmarks();
+    document.getElementById('countAll').textContent = this.bookmarks.length;
+    document.getElementById('countPinned').textContent = this.bookmarks.filter(b => b.pinned).length;
+    document.getElementById('countPrivate').textContent = this.bookmarks.filter(b => b.isPrivate).length;
+    if (filtered.length === 0) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><h3>暂无书签</h3><p>点击右上角"新建书签"添加第一个书签</p></div>`;
+      return;
+    }
+    grid.innerHTML = filtered.map(b => this.createBookmarkCard(b)).join('');
+  }
+  createBookmarkCard(b) {
+    const isLocked = b.isPrivate && !this.isAuthenticated;
+    const categoryColor = this.getCategoryColor(b.category);
+    return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''} ${isLocked ? 'private-locked' : ''}" data-id="${b.id}">
+      <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
+        <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
+      </div><p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
+      <div class="card-footer">${isLocked ? `<span class="card-link" style="color: var(--text-muted); cursor: not-allowed;">🔒 私有内容</span>` : `<a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener" class="card-link">🔗 ${this.truncateUrl(b.url)}</a>`}
+        <div class="card-actions"><button onclick="app.editBookmark('${b.id}')" title="编辑">✏️</button><button class="delete" onclick="app.deleteBookmark('${b.id}')" title="删除">🗑️</button></div>
+      </div></div>`;
+  }
+  renderCategories() {
+    const list = document.getElementById('categoryList');
+    const counts = {};
+    this.bookmarks.forEach(b => { counts[b.category] = (counts[b.category] || 0) + 1; });
+    list.innerHTML = this.categories.map(cat => {
+      const color = this.getCategoryColor(cat);
+      const isActive = this.currentView === cat;
+      return `<div class="category-item ${isActive ? 'active' : ''}" onclick="app.setView('${this.escapeHtml(cat)}')"><span class="cat-color" style="background: ${color}"></span><span>${this.escapeHtml(cat)}</span><span style="margin-left: auto; font-size: 0.75rem; opacity: 0.6;">${counts[cat] || 0}</span></div>`;
+    }).join('');
+    const select = document.getElementById('formCategory');
+    select.innerHTML = this.categories.map(cat => `<option value="${this.escapeHtml(cat)}">${this.escapeHtml(cat)}</option>`).join('');
+  }
+  getCategoryColor(category) {
+    const colors = ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
+    let hash = 0;
+    for (let i = 0; i < category.length; i++) hash = category.charCodeAt(i) + ((hash << 5) - hash);
+    return colors[Math.abs(hash) % colors.length];
+  }
+  showAddModal() {
+    document.getElementById('bookmarkForm').reset();
+    document.getElementById('bookmarkId').value = '';
+    document.getElementById('modalTitle').textContent = '新建书签';
+    document.getElementById('bookmarkModal').classList.add('open');
+    document.getElementById('formTitle').focus();
+  }
+  editBookmark(id) {
+    const b = this.bookmarks.find(x => x.id === id);
+    if (!b) return;
+    document.getElementById('bookmarkId').value = b.id;
+    document.getElementById('formTitle').value = b.title;
+    document.getElementById('formUrl').value = b.url;
+    document.getElementById('formDesc').value = b.description || '';
+    document.getElementById('formCategory').value = b.category || '未分类';
+    document.getElementById('formPinned').checked = b.pinned;
+    document.getElementById('formPrivate').checked = b.isPrivate;
+    document.getElementById('modalTitle').textContent = '编辑书签';
+    document.getElementById('bookmarkModal').classList.add('open');
+  }
+  closeModal() { document.getElementById('bookmarkModal').classList.remove('open'); }
+  async saveBookmark() {
+    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+    const id = document.getElementById('bookmarkId').value;
+    const title = document.getElementById('formTitle').value.trim();
+    const url = document.getElementById('formUrl').value.trim();
+    const description = document.getElementById('formDesc').value.trim();
+    const newCategory = document.getElementById('formNewCategory').value.trim();
+    const category = newCategory || document.getElementById('formCategory').value;
+    const pinned = document.getElementById('formPinned').checked;
+    const isPrivate = document.getElementById('formPrivate').checked;
+    if (!title || !url) { this.showToast('请填写标题和链接', 'error'); return; }
+    const data = { title, url, description, category, pinned, isPrivate };
+    try {
+      const res = await fetch(API_BASE + '/bookmarks' + (id ? '/' + id : ''), {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
+        body: JSON.stringify(data)
       });
-      return new Response(JSON.stringify({ bookmarks: b }), { headers: { 'Content-Type': 'application/json' } });
-    }
-    if (method === 'POST') {
-      if (!body.title || !body.url) {
-        return new Response(JSON.stringify({ error: 'Title and URL required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
-      }
-      var bm = {
-        id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-        title: body.title.trim(),
-        url: body.url.trim(),
-        description: (body.description || '').trim(),
-        category: body.category || '未分类',
-        pinned: !!body.pinned,
-        isPrivate: !!body.isPrivate,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-      await kv.put('bookmark:' + bm.id, JSON.stringify(bm));
-      return new Response(JSON.stringify({ bookmark: bm }), { status: 201, headers: { 'Content-Type': 'application/json' } });
-    }
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+      if (!res.ok) throw new Error('保存失败');
+      this.showToast(id ? '书签已更新' : '书签已创建', 'success');
+      this.closeModal();
+      await this.loadData();
+      this.renderCategories();
+      this.renderBookmarks();
+    } catch (e) { this.showToast(e.message, 'error'); }
   }
-
-  if (path.indexOf('/api/bookmarks/') === 0 && path.length > '/api/bookmarks/'.length) {
-    var id = path.substring('/api/bookmarks/'.length);
-    if (method === 'GET') {
-      var d = await kv.get('bookmark:' + id, 'json');
-      if (!d) {
-        return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
-      }
-      if (d.isPrivate && !(await authCheck())) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 403, headers: { 'Content-Type': 'application/json' } });
-      }
-      return new Response(JSON.stringify({ bookmark: d }), { headers: { 'Content-Type': 'application/json' } });
-    }
-    if (method === 'PUT') {
-      var e = await kv.get('bookmark:' + id, 'json');
-      if (!e) {
-        return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
-      }
-      var u = {
-        id: e.id,
-        title: body.title !== undefined ? body.title.trim() : e.title,
-        url: body.url !== undefined ? body.url.trim() : e.url,
-        description: body.description !== undefined ? body.description.trim() : e.description,
-        category: body.category || e.category,
-        pinned: body.pinned !== undefined ? !!body.pinned : e.pinned,
-        isPrivate: body.isPrivate !== undefined ? !!body.isPrivate : e.isPrivate,
-        createdAt: e.createdAt,
-        updatedAt: new Date().toISOString()
-      };
-      await kv.put('bookmark:' + id, JSON.stringify(u));
-      return new Response(JSON.stringify({ bookmark: u }), { headers: { 'Content-Type': 'application/json' } });
-    }
-    if (method === 'DELETE') {
-      await kv.delete('bookmark:' + id);
-      return new Response(null, { status: 204 });
-    }
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
+  deleteBookmark(id) { this.deleteTarget = id; document.getElementById('deleteModal').classList.add('open'); }
+  closeDeleteModal() { document.getElementById('deleteModal').classList.remove('open'); this.deleteTarget = null; }
+  async confirmDelete() {
+    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+    if (!this.deleteTarget) return;
+    try {
+      const res = await fetch(API_BASE + '/bookmarks/' + this.deleteTarget, { method: 'DELETE', headers: this.authHeaders() });
+      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+      if (!res.ok) throw new Error('删除失败');
+      this.showToast('书签已删除', 'success');
+      this.closeDeleteModal();
+      await this.loadData();
+      this.renderCategories();
+      this.renderBookmarks();
+    } catch (e) { this.showToast(e.message, 'error'); }
   }
-
-  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+  showAddCategory() {
+    document.getElementById('newCategoryName').value = '';
+    document.getElementById('categoryModal').classList.add('open');
+    document.getElementById('newCategoryName').focus();
+  }
+  closeCategoryModal() { document.getElementById('categoryModal').classList.remove('open'); }
+  async addCategory() {
+    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+    const name = document.getElementById('newCategoryName').value.trim();
+    if (!name) return;
+    if (this.categories.includes(name)) { this.showToast('分类已存在', 'error'); return; }
+    try {
+      const res = await fetch(API_BASE + '/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
+        body: JSON.stringify({ name })
+      });
+      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+      if (!res.ok) throw new Error('创建失败');
+      this.showToast('分类已创建', 'success');
+      this.closeCategoryModal();
+      await this.loadData();
+      this.renderCategories();
+    } catch (e) { this.showToast(e.message, 'error'); }
+  }
+  toggleAuth() {
+    if (this.isAuthenticated) { this.logout(); }
+    else {
+      document.getElementById('authPassword').value = '';
+      document.getElementById('authError').textContent = '';
+      document.getElementById('authModal').classList.add('open');
+      document.getElementById('authPassword').focus();
+    }
+  }
+  closeAuthModal() { document.getElementById('authModal').classList.remove('open'); }
+  async doAuth() {
+    const password = document.getElementById('authPassword').value;
+    try {
+      const res = await fetch(API_BASE + '/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      const data = await res.json();
+      if (data.success) {
+        this.authToken = data.token;
+        this.isAuthenticated = true;
+        localStorage.setItem('bookmark_auth', this.authToken);
+        this.showToast('验证成功', 'success');
+        this.closeAuthModal();
+        this.updateAuthUI();
+        await this.loadData();
+        this.renderBookmarks();
+      } else { document.getElementById('authError').textContent = '密码错误'; }
+    } catch (e) { document.getElementById('authError').textContent = '验证失败'; }
+  }
+  logout() {
+    this.authToken = ''; this.isAuthenticated = false;
+    localStorage.removeItem('bookmark_auth');
+    this.updateAuthUI();
+    this.loadData().then(() => { this.renderBookmarks(); });
+    this.showToast('已退出', 'info');
+  }
+  updateAuthUI() {
+    const icon = document.getElementById('authIcon');
+    const status = document.getElementById('authStatus');
+    const addBtn = document.getElementById('addBookmarkBtn');
+    const addCatBtn = document.getElementById('addCategoryBtn');
+    if (this.isAuthenticated) {
+      icon.textContent = '🔓';
+      status.textContent = '已验证';
+      if (addBtn) addBtn.style.display = 'inline-flex';
+      if (addCatBtn) addCatBtn.style.display = 'flex';
+    } else {
+      icon.textContent = '🔒';
+      status.textContent = '未验证';
+      if (addBtn) addBtn.style.display = 'none';
+      if (addCatBtn) addCatBtn.style.display = 'none';
+    }
+  }
+  showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : 'ℹ️'}</span> ${this.escapeHtml(message)}`;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  truncateUrl(url) {
+    try {
+      const u = new URL(url);
+      return u.hostname + (u.pathname.length > 20 ? u.pathname.slice(0, 20) + '...' : u.pathname);
+    } catch { return url.length > 30 ? url.slice(0, 30) + '...' : url; }
+  }
 }
+const app = new BookmarkApp();
+</script>
+</body>
+</html>
