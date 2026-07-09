@@ -15,15 +15,43 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
+// Try to find KV binding from env
+function getKV(env) {
+  // First check if KV_BINDING env var is set (the variable NAME, not the binding itself)
+  var bindingName = env.KV_BINDING;
+  if (bindingName && env[bindingName]) {
+    return env[bindingName];
+  }
+  // Try common default names
+  var commonNames = ['BOOKMARK_KV', 'KV', 'MY_KV', 'kv', 'bookmark_kv'];
+  for (var i = 0; i < commonNames.length; i++) {
+    if (env[commonNames[i]]) {
+      return env[commonNames[i]];
+    }
+  }
+  // Last resort: iterate env keys to find something that looks like a KV binding
+  var keys = Object.keys(env);
+  for (var j = 0; j < keys.length; j++) {
+    var key = keys[j];
+    var val = env[key];
+    // KV bindings have put/get/delete/list methods
+    if (val && typeof val.put === 'function' && typeof val.get === 'function') {
+      return val;
+    }
+  }
+  return null;
+}
+
 export default async function onRequest(context) {
   try {
-    const request = context.request;
-    const env = context.env;
-    const url = new URL(request.url);
-    const path = url.pathname;
-    const method = request.method;
+    var request = context.request;
+    var env = context.env;
+    var url = new URL(request.url);
+    var path = url.pathname;
+    var method = request.method;
 
     console.log('Request:', method, path);
+    console.log('Env keys:', Object.keys(env));
 
     // CORS preflight
     if (method === 'OPTIONS') {
@@ -38,22 +66,24 @@ export default async function onRequest(context) {
     }
 
     // Get KV binding
-    const kv = env.BOOKMARK_KV;
+    var kv = getKV(env);
     if (!kv) {
-      console.error('KV not found in env. Available keys:', Object.keys(env));
-      return errorResponse('KV storage not configured. Bind KV namespace with variable name BOOKMARK_KV', 500);
+      console.error('KV not found. Env keys:', Object.keys(env));
+      return errorResponse(
+        'KV storage not found. Please: 1) Create a KV namespace, 2) Bind it to this project with variable name BOOKMARK_KV (or set KV_BINDING env var to your variable name)', 
+        500
+      );
     }
-
     console.log('KV binding found');
 
     // Auth check helper
-    const checkAuth = async function() {
+    var checkAuth = async function() {
       try {
-        const authHeader = request.headers.get('X-Auth-Token');
+        var authHeader = request.headers.get('X-Auth-Token');
         if (!authHeader) return false;
-        const stored = await kv.get('auth_tokens');
+        var stored = await kv.get('auth_tokens');
         if (!stored) return false;
-        const tokens = JSON.parse(stored);
+        var tokens = JSON.parse(stored);
         return tokens.indexOf(authHeader) !== -1;
       } catch (e) {
         return false;
@@ -61,7 +91,7 @@ export default async function onRequest(context) {
     };
 
     // Parse request body for POST/PUT
-    let body = {};
+    var body = {};
     if (method === 'POST' || method === 'PUT') {
       try {
         body = await request.json();
@@ -74,16 +104,16 @@ export default async function onRequest(context) {
     if (path === '/api/auth') {
       if (method !== 'POST') return errorResponse('Method not allowed', 405);
 
-      const password = body.password;
-      const correctPassword = env.AUTH_PASSWORD;
+      var password = body.password;
+      var correctPassword = env.AUTH_PASSWORD;
       if (!correctPassword) {
         return errorResponse('AUTH_PASSWORD environment variable not set', 500);
       }
       if (password === correctPassword) {
-        const token = generateId() + generateId();
-        let tokens = [];
+        var token = generateId() + generateId();
+        var tokens = [];
         try {
-          const existing = await kv.get('auth_tokens');
+          var existing = await kv.get('auth_tokens');
           if (existing) tokens = JSON.parse(existing);
         } catch (e) {}
         tokens.push(token);
@@ -97,19 +127,19 @@ export default async function onRequest(context) {
     // Route: /api/categories
     if (path === '/api/categories') {
       if (method === 'GET') {
-        let categories = ['未分类'];
+        var categories = ['未分类'];
         try {
-          const data = await kv.get('categories');
+          var data = await kv.get('categories');
           if (data) categories = JSON.parse(data);
         } catch (e) {}
         return jsonResponse({ categories });
       }
       if (method === 'POST') {
-        const name = body.name;
+        var name = body.name;
         if (!name || !name.trim()) return errorResponse('Category name required');
-        let categories = ['未分类'];
+        var categories = ['未分类'];
         try {
-          const data = await kv.get('categories');
+          var data = await kv.get('categories');
           if (data) categories = JSON.parse(data);
         } catch (e) {}
         if (categories.indexOf(name.trim()) === -1) {
@@ -124,14 +154,14 @@ export default async function onRequest(context) {
     // Route: /api/bookmarks
     if (path === '/api/bookmarks') {
       if (method === 'GET') {
-        const bookmarks = [];
+        var bookmarks = [];
         try {
-          const result = await kv.list({ prefix: 'bookmark:' });
+          var result = await kv.list({ prefix: 'bookmark:' });
           if (result && result.keys) {
-            for (let i = 0; i < result.keys.length; i++) {
+            for (var i = 0; i < result.keys.length; i++) {
               try {
-                const data = await kv.get(result.keys[i].key, 'json');
-                if (data) bookmarks.push(data);
+                var item = await kv.get(result.keys[i].key, 'json');
+                if (item) bookmarks.push(item);
               } catch (e) {}
             }
           }
@@ -147,7 +177,7 @@ export default async function onRequest(context) {
       }
       if (method === 'POST') {
         if (!body.title || !body.url) return errorResponse('Title and URL required');
-        const bookmark = {
+        var bookmark = {
           id: generateId(),
           title: body.title.trim(),
           url: body.url.trim(),
@@ -159,9 +189,9 @@ export default async function onRequest(context) {
           updatedAt: new Date().toISOString()
         };
         await kv.put('bookmark:' + bookmark.id, JSON.stringify(bookmark));
-        let categories = ['未分类'];
+        var categories = ['未分类'];
         try {
-          const catData = await kv.get('categories');
+          var catData = await kv.get('categories');
           if (catData) categories = JSON.parse(catData);
         } catch (e) {}
         if (categories.indexOf(bookmark.category) === -1) {
@@ -175,10 +205,10 @@ export default async function onRequest(context) {
 
     // Route: /api/bookmarks/:id
     if (path.indexOf('/api/bookmarks/') === 0 && path.length > '/api/bookmarks/'.length) {
-      const id = path.substring('/api/bookmarks/'.length);
+      var id = path.substring('/api/bookmarks/'.length);
 
       if (method === 'GET') {
-        const data = await kv.get('bookmark:' + id, 'json');
+        var data = await kv.get('bookmark:' + id, 'json');
         if (!data) return errorResponse('Bookmark not found', 404);
         if (data.isPrivate && !(await checkAuth())) {
           return errorResponse('Unauthorized', 403);
@@ -187,9 +217,9 @@ export default async function onRequest(context) {
       }
 
       if (method === 'PUT') {
-        const existing = await kv.get('bookmark:' + id, 'json');
+        var existing = await kv.get('bookmark:' + id, 'json');
         if (!existing) return errorResponse('Bookmark not found', 404);
-        const updated = {
+        var updated = {
           id: existing.id,
           title: body.title !== undefined ? body.title.trim() : existing.title,
           url: body.url !== undefined ? body.url.trim() : existing.url,
@@ -201,9 +231,9 @@ export default async function onRequest(context) {
           updatedAt: new Date().toISOString()
         };
         await kv.put('bookmark:' + id, JSON.stringify(updated));
-        let categories = ['未分类'];
+        var categories = ['未分类'];
         try {
-          const catData = await kv.get('categories');
+          var catData = await kv.get('categories');
           if (catData) categories = JSON.parse(catData);
         } catch (e) {}
         if (categories.indexOf(updated.category) === -1) {
