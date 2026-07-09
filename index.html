@@ -470,7 +470,7 @@
     <div class="nav-section">
       <div class="nav-label">分类</div>
       <div id="categoryList" class="category-list"></div>
-      <div class="add-category-btn" onclick="app.showAddCategory()">
+      <div class="add-category-btn" id="addCategoryBtn" onclick="app.showAddCategory()" style="display:none">
         <span>+</span> 新建分类
       </div>
     </div>
@@ -488,8 +488,8 @@
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
       </div>
-      <div class="top-actions">
-        <button class="btn btn-primary" onclick="app.showAddModal()">
+      <div class="top-actions" id="topActions">
+        <button class="btn btn-primary" id="addBookmarkBtn" onclick="app.showAddModal()">
           <span>+</span> 新建书签
         </button>
       </div>
@@ -751,6 +751,7 @@ class BookmarkApp {
   }
   closeModal() { document.getElementById('bookmarkModal').classList.remove('open'); }
   async saveBookmark() {
+    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
     const id = document.getElementById('bookmarkId').value;
     const title = document.getElementById('formTitle').value.trim();
     const url = document.getElementById('formUrl').value.trim();
@@ -767,6 +768,7 @@ class BookmarkApp {
         headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
         body: JSON.stringify(data)
       });
+      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error('保存失败');
       this.showToast(id ? '书签已更新' : '书签已创建', 'success');
       this.closeModal();
@@ -778,9 +780,11 @@ class BookmarkApp {
   deleteBookmark(id) { this.deleteTarget = id; document.getElementById('deleteModal').classList.add('open'); }
   closeDeleteModal() { document.getElementById('deleteModal').classList.remove('open'); this.deleteTarget = null; }
   async confirmDelete() {
+    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
     if (!this.deleteTarget) return;
     try {
       const res = await fetch(API_BASE + '/bookmarks/' + this.deleteTarget, { method: 'DELETE', headers: this.authHeaders() });
+      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error('删除失败');
       this.showToast('书签已删除', 'success');
       this.closeDeleteModal();
@@ -796,15 +800,17 @@ class BookmarkApp {
   }
   closeCategoryModal() { document.getElementById('categoryModal').classList.remove('open'); }
   async addCategory() {
+    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
     const name = document.getElementById('newCategoryName').value.trim();
     if (!name) return;
     if (this.categories.includes(name)) { this.showToast('分类已存在', 'error'); return; }
     try {
       const res = await fetch(API_BASE + '/categories', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
         body: JSON.stringify({ name })
       });
+      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error('创建失败');
       this.showToast('分类已创建', 'success');
       this.closeCategoryModal();
@@ -853,8 +859,19 @@ class BookmarkApp {
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
     const status = document.getElementById('authStatus');
-    if (this.isAuthenticated) { icon.textContent = '🔓'; status.textContent = '已验证'; }
-    else { icon.textContent = '🔒'; status.textContent = '未验证'; }
+    const addBtn = document.getElementById('addBookmarkBtn');
+    const addCatBtn = document.getElementById('addCategoryBtn');
+    if (this.isAuthenticated) {
+      icon.textContent = '🔓';
+      status.textContent = '已验证';
+      if (addBtn) addBtn.style.display = 'inline-flex';
+      if (addCatBtn) addCatBtn.style.display = 'flex';
+    } else {
+      icon.textContent = '🔒';
+      status.textContent = '未验证';
+      if (addBtn) addBtn.style.display = 'none';
+      if (addCatBtn) addCatBtn.style.display = 'none';
+    }
   }
   showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
