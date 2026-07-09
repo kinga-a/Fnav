@@ -11,7 +11,7 @@ export default async function onRequest(context) {
       headers: {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, X-Auth-Token'
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization'
       }
     });
   }
@@ -19,12 +19,13 @@ export default async function onRequest(context) {
   var kv = BOOKMARK_KV;
 
   var authCheck = async function() {
-    var h = request.headers.get('X-Auth-Token');
-    if (!h) return false;
+    var authHeader = request.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) return false;
+    var token = authHeader.replace('Bearer ', '');
     var s = await kv.get('auth_tokens');
     if (!s) return false;
     var tokens = JSON.parse(s);
-    return tokens.indexOf(h) !== -1;
+    return tokens.indexOf(token) !== -1;
   };
 
   var body = {};
