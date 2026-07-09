@@ -1,4 +1,3 @@
-
 // ============================================
 // EdgeOne Pages Bookmark Manager
 // File: edge-functions/[[default]].js
@@ -8,17 +7,26 @@
 
 // --- Utility Functions ---
 
-function jsonResponse(data, status = 200) {
+function jsonResponse(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=UTF-8' }
+    headers: { 
+      'Content-Type': 'application/json; charset=UTF-8',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      ...extraHeaders
+    }
   });
 }
 
 function htmlResponse(html, status = 200) {
   return new Response(html, {
     status,
-    headers: { 'Content-Type': 'text/html; charset=UTF-8' }
+    headers: { 
+      'Content-Type': 'text/html; charset=UTF-8',
+      'Cache-Control': 'no-cache'
+    }
   });
 }
 
@@ -30,7 +38,6 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
-// Check if user is authenticated via cookie
 function isAuthenticated(request, env) {
   const cookie = request.headers.get('Cookie') || '';
   const match = cookie.match(/auth_token=([^;]+)/);
@@ -45,12 +52,11 @@ function isAuthenticated(request, env) {
 
 // --- API Handlers ---
 
-async function handleApiBookmarks(request, env, url) {
+async function handleApiBookmarks(request, env) {
   const kv = env.BOOKMARK_KV;
   const authenticated = isAuthenticated(request, env);
 
   if (request.method === 'GET') {
-    // List bookmarks - filter private if not authenticated
     const result = await kv.list({ prefix: 'bm:' });
     const bookmarks = [];
     for (const key of result.keys) {
@@ -61,7 +67,6 @@ async function handleApiBookmarks(request, env, url) {
         }
       }
     }
-    // Sort: pinned first, then by updatedAt desc
     bookmarks.sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
@@ -71,7 +76,6 @@ async function handleApiBookmarks(request, env, url) {
   }
 
   if (request.method === 'POST') {
-    // Create bookmark - requires auth
     if (!authenticated) return unauthorizedResponse();
     const body = await request.json();
     const id = generateId();
@@ -179,6 +183,15 @@ async function handleApiAuthStatus(request, env) {
   return jsonResponse({ authenticated });
 }
 
+async function handleApiDebug(request, env) {
+  return jsonResponse({
+    status: 'ok',
+    kv_bound: !!env.BOOKMARK_KV,
+    auth_configured: !!(env.AUTH_PASSWORD && env.AUTH_PASSWORD.length > 0),
+    timestamp: Date.now()
+  });
+}
+
 // --- HTML Template ---
 
 function getHtmlTemplate() {
@@ -202,8 +215,6 @@ function getHtmlTemplate() {
     background: var(--bg); color: var(--text); min-height: 100vh;
     overflow-x: hidden;
   }
-
-  /* Top Bar */
   .topbar {
     position: fixed; top: 0; left: 0; right: 0; height: 56px;
     background: var(--bg2); border-bottom: 1px solid var(--border);
@@ -238,8 +249,6 @@ function getHtmlTemplate() {
   }
   .auth-btn:hover { opacity: 0.85; }
   .auth-btn.logout { background: var(--bg3); color: var(--text2); }
-
-  /* Sidebar */
   .sidebar {
     position: fixed; top: 56px; left: 0; bottom: 0; width: 240px;
     background: var(--bg2); border-right: 1px solid var(--border);
@@ -267,14 +276,11 @@ function getHtmlTemplate() {
   .sidebar-item .icon { font-size: 16px; width: 20px; text-align: center; }
   .sidebar-item .count { margin-left: auto; font-size: 11px; background: var(--bg3); padding: 2px 8px; border-radius: 10px; }
   .sidebar-divider { height: 1px; background: var(--border); margin: 12px 16px; }
-
-  /* Main Content */
   .main {
     margin-top: 56px; padding: 24px; min-height: calc(100vh - 56px);
     transition: margin-left 0.3s;
   }
   .main.sidebar-open { margin-left: 240px; }
-
   .page-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 24px; flex-wrap: wrap; gap: 12px;
@@ -288,8 +294,6 @@ function getHtmlTemplate() {
   }
   .btn-primary:hover { opacity: 0.85; }
   .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  /* Bookmark Cards */
   .bookmarks-grid {
     display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 16px;
@@ -343,15 +347,11 @@ function getHtmlTemplate() {
   }
   .bookmark-actions button:hover { background: var(--accent); color: #fff; }
   .bookmark-actions button.danger:hover { background: var(--danger); }
-
-  /* Empty State */
   .empty-state {
     text-align: center; padding: 60px 20px; color: var(--text3);
   }
   .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
   .empty-state h3 { color: var(--text2); margin-bottom: 8px; }
-
-  /* Modal */
   .modal-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.6);
     z-index: 200; display: flex; align-items: center; justify-content: center;
@@ -406,16 +406,12 @@ function getHtmlTemplate() {
     padding: 10px 18px; font-size: 14px; cursor: pointer; font-weight: 500;
   }
   .btn-secondary:hover { background: var(--border); }
-
-  /* Auth Modal */
   .auth-input {
     width: 100%; background: var(--bg); border: 1px solid var(--border);
     border-radius: 8px; padding: 12px 14px; color: var(--text); font-size: 15px;
     outline: none; margin-bottom: 16px;
   }
   .auth-input:focus { border-color: var(--accent); }
-
-  /* Toast */
   .toast-container {
     position: fixed; bottom: 24px; right: 24px; z-index: 300;
     display: flex; flex-direction: column; gap: 8px;
@@ -432,8 +428,6 @@ function getHtmlTemplate() {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
-
-  /* Loading */
   .loading {
     display: flex; align-items: center; justify-content: center; padding: 60px;
   }
@@ -443,8 +437,6 @@ function getHtmlTemplate() {
     animation: spin 0.8s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* Responsive */
   @media (max-width: 768px) {
     .main.sidebar-open { margin-left: 0; }
     .bookmarks-grid { grid-template-columns: 1fr; }
@@ -455,7 +447,6 @@ function getHtmlTemplate() {
 </head>
 <body>
 
-<!-- Top Bar -->
 <div class="topbar">
   <button class="menu-btn" id="menuBtn" title="切换侧边栏">☰</button>
   <div class="search-box">
@@ -466,16 +457,12 @@ function getHtmlTemplate() {
   <button class="auth-btn" id="authBtn">登录</button>
 </div>
 
-<!-- Sidebar Overlay -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-<!-- Sidebar -->
 <div class="sidebar" id="sidebar">
   <div class="sidebar-title">分类</div>
   <div id="sidebarContent"></div>
 </div>
 
-<!-- Main Content -->
 <div class="main" id="main">
   <div class="page-header">
     <div>
@@ -489,7 +476,6 @@ function getHtmlTemplate() {
   <div class="bookmarks-grid" id="bookmarksGrid"></div>
 </div>
 
-<!-- Bookmark Modal -->
 <div class="modal-overlay" id="bookmarkModal">
   <div class="modal">
     <div class="modal-header">
@@ -512,9 +498,7 @@ function getHtmlTemplate() {
       <div class="form-row">
         <div class="form-group">
           <label>分类</label>
-          <select id="bmCategory">
-            <option value="未分类">未分类</option>
-          </select>
+          <select id="bmCategory"><option value="未分类">未分类</option></select>
         </div>
         <div class="form-group">
           <label>&nbsp;</label>
@@ -538,402 +522,134 @@ function getHtmlTemplate() {
   </div>
 </div>
 
-<!-- Auth Modal -->
 <div class="modal-overlay" id="authModal">
-  <div class="modal" style="max-width: 380px;">
+  <div class="modal" style="max-width:380px;">
     <div class="modal-header">
       <div class="modal-title">🔐 管理员登录</div>
       <button class="modal-close" id="closeAuthModal">&times;</button>
     </div>
     <div class="modal-body">
-      <p style="color:var(--text2); font-size:13px; margin-bottom:16px;">
-        输入密码以解锁创建、编辑和删除书签的权限。
-      </p>
+      <p style="color:var(--text2);font-size:13px;margin-bottom:16px;">输入密码以解锁创建、编辑和删除书签的权限。</p>
       <input type="password" class="auth-input" id="authPassword" placeholder="输入密码">
       <button class="btn-primary" id="loginBtn" style="width:100%;">登录</button>
     </div>
   </div>
 </div>
 
-<!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-// ============================================
-// Frontend JavaScript
-// ============================================
+let bookmarks=[],categories=[],authenticated=false,currentCategory='all',editingId=null,sidebarOpen=false;
+const API_BASE='/api';
+const el={
+  menuBtn:document.getElementById('menuBtn'),sidebar:document.getElementById('sidebar'),
+  sidebarOverlay:document.getElementById('sidebarOverlay'),sidebarContent:document.getElementById('sidebarContent'),
+  searchInput:document.getElementById('searchInput'),clearSearch:document.getElementById('clearSearch'),
+  authBtn:document.getElementById('authBtn'),addBtn:document.getElementById('addBtn'),
+  pageTitle:document.getElementById('pageTitle'),pageSubtitle:document.getElementById('pageSubtitle'),
+  bookmarksGrid:document.getElementById('bookmarksGrid'),bookmarkModal:document.getElementById('bookmarkModal'),
+  authModal:document.getElementById('authModal'),modalTitle:document.getElementById('modalTitle'),
+  bmTitle:document.getElementById('bmTitle'),bmUrl:document.getElementById('bmUrl'),bmDesc:document.getElementById('bmDesc'),
+  bmCategory:document.getElementById('bmCategory'),bmPinned:document.getElementById('bmPinned'),bmPrivate:document.getElementById('bmPrivate'),
+  saveBtn:document.getElementById('saveBtn'),cancelBtn:document.getElementById('cancelBtn'),closeModal:document.getElementById('closeModal'),
+  closeAuthModal:document.getElementById('closeAuthModal'),loginBtn:document.getElementById('loginBtn'),
+  authPassword:document.getElementById('authPassword'),toastContainer:document.getElementById('toastContainer')
+};
 
-let bookmarks = [];
-let categories = [];
-let authenticated = false;
-let currentCategory = 'all';
-let editingId = null;
-let sidebarOpen = false;
+async function apiGet(p){const r=await fetch(API_BASE+p);return r.json();}
+async function apiPost(p,d){const r=await fetch(API_BASE+p,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return r.json();}
+async function apiPut(p,d){const r=await fetch(API_BASE+p,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(d)});return r.json();}
+async function apiDelete(p){const r=await fetch(API_BASE+p,{method:'DELETE'});return r.json();}
 
-const API_BASE = '/api';
+function showToast(m,t='success'){const d=document.createElement('div');d.className='toast '+t;d.innerHTML=(t==='success'?'✅ ':'❌ ')+m;el.toastContainer.appendChild(d);setTimeout(()=>d.remove(),3000);}
+function toggleSidebar(){sidebarOpen=!sidebarOpen;el.sidebar.classList.toggle('open',sidebarOpen);el.sidebarOverlay.classList.toggle('open',sidebarOpen);document.getElementById('main').classList.toggle('sidebar-open',sidebarOpen);}
+function openModal(e=false){el.modalTitle.textContent=e?'编辑书签':'新建书签';el.bookmarkModal.classList.add('open');el.bmTitle.focus();}
+function closeBookmarkModal(){el.bookmarkModal.classList.remove('open');editingId=null;el.bmTitle.value='';el.bmUrl.value='';el.bmDesc.value='';el.bmCategory.value='未分类';el.bmPinned.checked=false;el.bmPrivate.checked=false;}
+function openAuthModal(){el.authModal.classList.add('open');el.authPassword.focus();}
+function closeAuthModalFn(){el.authModal.classList.remove('open');el.authPassword.value='';}
+function getFavicon(u){try{const x=new URL(u);return'https://www.google.com/s2/favicons?domain='+x.hostname+'&sz=32';}catch{return'';}}
+function getDomain(u){try{const x=new URL(u);return x.hostname;}catch{return u;}}
 
-// --- DOM Elements ---
-const menuBtn = document.getElementById('menuBtn');
-const sidebar = document.getElementById('sidebar');
-const sidebarOverlay = document.getElementById('sidebarOverlay');
-const sidebarContent = document.getElementById('sidebarContent');
-const searchInput = document.getElementById('searchInput');
-const clearSearch = document.getElementById('clearSearch');
-const authBtn = document.getElementById('authBtn');
-const addBtn = document.getElementById('addBtn');
-const pageTitle = document.getElementById('pageTitle');
-const pageSubtitle = document.getElementById('pageSubtitle');
-const bookmarksGrid = document.getElementById('bookmarksGrid');
-const bookmarkModal = document.getElementById('bookmarkModal');
-const authModal = document.getElementById('authModal');
-const modalTitle = document.getElementById('modalTitle');
-const bmTitle = document.getElementById('bmTitle');
-const bmUrl = document.getElementById('bmUrl');
-const bmDesc = document.getElementById('bmDesc');
-const bmCategory = document.getElementById('bmCategory');
-const bmPinned = document.getElementById('bmPinned');
-const bmPrivate = document.getElementById('bmPrivate');
-const saveBtn = document.getElementById('saveBtn');
-const cancelBtn = document.getElementById('cancelBtn');
-const closeModal = document.getElementById('closeModal');
-const closeAuthModal = document.getElementById('closeAuthModal');
-const loginBtn = document.getElementById('loginBtn');
-const authPassword = document.getElementById('authPassword');
-const toastContainer = document.getElementById('toastContainer');
-
-// --- API Helpers ---
-
-async function apiGet(path) {
-  const res = await fetch(API_BASE + path);
-  return res.json();
+function renderSidebar(){
+  const c={};bookmarks.forEach(b=>{const k=b.category||'未分类';c[k]=(c[k]||0)+1;});
+  let h='';
+  h+='<div class="sidebar-item'+(currentCategory==='all'?' active':'')+'" data-cat="all"><span class="icon">📑</span><span>全部书签</span><span class="count">'+bookmarks.length+'</span></div>';
+  h+='<div class="sidebar-divider"></div><div class="sidebar-title">按分类</div>';
+  categories.forEach(cat=>{const n=c[cat]||0;h+='<div class="sidebar-item'+(currentCategory===cat?' active':'')+'" data-cat="'+cat+'"><span class="icon">📁</span><span>'+cat+'</span><span class="count">'+n+'</span></div>';});
+  el.sidebarContent.innerHTML=h;
+  el.sidebarContent.querySelectorAll('.sidebar-item').forEach(item=>{item.addEventListener('click',()=>{currentCategory=item.dataset.cat;renderSidebar();renderBookmarks();if(window.innerWidth<768)toggleSidebar();});});
 }
 
-async function apiPost(path, data) {
-  const res = await fetch(API_BASE + path, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-  });
-  return res.json();
-}
-
-async function apiPut(path, data) {
-  const res = await fetch(API_BASE + path, {
-    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-  });
-  return res.json();
-}
-
-async function apiDelete(path) {
-  const res = await fetch(API_BASE + path, { method: 'DELETE' });
-  return res.json();
-}
-
-// --- UI Functions ---
-
-function showToast(message, type = 'success') {
-  const toast = document.createElement('div');
-  toast.className = 'toast ' + type;
-  toast.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + message;
-  toastContainer.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-
-function toggleSidebar() {
-  sidebarOpen = !sidebarOpen;
-  sidebar.classList.toggle('open', sidebarOpen);
-  sidebarOverlay.classList.toggle('open', sidebarOpen);
-  document.getElementById('main').classList.toggle('sidebar-open', sidebarOpen);
-}
-
-function openModal(isEdit = false) {
-  modalTitle.textContent = isEdit ? '编辑书签' : '新建书签';
-  bookmarkModal.classList.add('open');
-  bmTitle.focus();
-}
-
-function closeBookmarkModal() {
-  bookmarkModal.classList.remove('open');
-  editingId = null;
-  bmTitle.value = '';
-  bmUrl.value = '';
-  bmDesc.value = '';
-  bmCategory.value = '未分类';
-  bmPinned.checked = false;
-  bmPrivate.checked = false;
-}
-
-function openAuthModal() {
-  authModal.classList.add('open');
-  authPassword.focus();
-}
-
-function closeAuthModalFn() {
-  authModal.classList.remove('open');
-  authPassword.value = '';
-}
-
-function getFavicon(url) {
-  try {
-    const u = new URL(url);
-    return 'https://www.google.com/s2/favicons?domain=' + u.hostname + '&sz=32';
-  } catch {
-    return '';
-  }
-}
-
-function getDomain(url) {
-  try {
-    const u = new URL(url);
-    return u.hostname;
-  } catch {
-    return url;
-  }
-}
-
-function renderSidebar() {
-  const counts = {};
-  bookmarks.forEach(b => {
-    const cat = b.category || '未分类';
-    counts[cat] = (counts[cat] || 0) + 1;
-  });
-
-  let html = '';
-
-  // All bookmarks
-  html += '<div class="sidebar-item' + (currentCategory === 'all' ? ' active' : '') + '" data-cat="all">';
-  html += '<span class="icon">📑</span><span>全部书签</span>';
-  html += '<span class="count">' + bookmarks.length + '</span></div>';
-
-  html += '<div class="sidebar-divider"></div>';
-  html += '<div class="sidebar-title">按分类</div>';
-
-  categories.forEach(cat => {
-    const count = counts[cat] || 0;
-    html += '<div class="sidebar-item' + (currentCategory === cat ? ' active' : '') + '" data-cat="' + cat + '">';
-    html += '<span class="icon">📁</span><span>' + cat + '</span>';
-    html += '<span class="count">' + count + '</span></div>';
-  });
-
-  sidebarContent.innerHTML = html;
-
-  sidebarContent.querySelectorAll('.sidebar-item').forEach(item => {
-    item.addEventListener('click', () => {
-      currentCategory = item.dataset.cat;
-      renderSidebar();
-      renderBookmarks();
-      if (window.innerWidth < 768) toggleSidebar();
-    });
-  });
-}
-
-function renderBookmarks() {
-  const search = searchInput.value.trim().toLowerCase();
-
-  let filtered = bookmarks.filter(b => {
-    if (currentCategory !== 'all' && b.category !== currentCategory) return false;
-    if (!search) return true;
-    const text = (b.title + ' ' + b.description + ' ' + b.url + ' ' + b.category).toLowerCase();
-    return text.includes(search);
-  });
-
-  // Sort within category: pinned first, then updatedAt desc
-  filtered.sort((a, b) => {
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
-    return (b.updatedAt || 0) - (a.updatedAt || 0);
-  });
-
-  pageTitle.textContent = currentCategory === 'all' ? '全部书签' : currentCategory;
-  pageSubtitle.textContent = '共 ' + filtered.length + ' 个书签' + (authenticated ? ' (已登录)' : ' (访客模式)');
-
-  if (filtered.length === 0) {
-    bookmarksGrid.innerHTML = '<div class="empty-state"><div class="icon">📭</div><h3>暂无书签</h3><p>点击右上角「新建书签」添加第一个书签</p></div>';
-    return;
-  }
-
-  bookmarksGrid.innerHTML = filtered.map(bm => {
-    const favicon = getFavicon(bm.url);
-    const domain = getDomain(bm.url);
-    return '<div class="bookmark-card' + (bm.isPinned ? ' pinned' : '') + (bm.isPrivate ? ' private' : '') + '">' +
-      '<div class="bookmark-card-header">' +
-        '<a class="bookmark-title" href="' + bm.url + '" target="_blank" rel="noopener">' +
-          (favicon ? '<img class="favicon" src="' + favicon + '" alt="">' : '') +
-          bm.title +
-        '</a>' +
-        '<div class="bookmark-badges">' +
-          (bm.isPinned ? '<span class="badge badge-pinned">置顶</span>' : '') +
-          (bm.isPrivate ? '<span class="badge badge-private">私有</span>' : '') +
-        '</div>' +
-      '</div>' +
-      '<div class="bookmark-url">' + domain + '</div>' +
-      '<div class="bookmark-desc">' + (bm.description || '暂无描述') + '</div>' +
-      '<div class="bookmark-footer">' +
-        '<span class="bookmark-category">📁 ' + (bm.category || '未分类') + '</span>' +
-        (authenticated ? '<div class="bookmark-actions">' +
-          '<button onclick="editBookmark(\'' + bm.id + '\')">✏️ 编辑</button>' +
-          '<button class="danger" onclick="deleteBookmark(\'' + bm.id + '\')">🗑️ 删除</button>' +
-        '</div>' : '') +
-      '</div>' +
+function renderBookmarks(){
+  const s=el.searchInput.value.trim().toLowerCase();
+  let f=bookmarks.filter(b=>{if(currentCategory!=='all'&&b.category!==currentCategory)return false;if(!s)return true;const t=(b.title+' '+b.description+' '+b.url+' '+b.category).toLowerCase();return t.includes(s);});
+  f.sort((a,b)=>{if(a.isPinned&&!b.isPinned)return-1;if(!a.isPinned&&b.isPinned)return 1;return(b.updatedAt||0)-(a.updatedAt||0);});
+  el.pageTitle.textContent=currentCategory==='all'?'全部书签':currentCategory;
+  el.pageSubtitle.textContent='共 '+f.length+' 个书签'+(authenticated?' (已登录)':' (访客模式)');
+  if(f.length===0){el.bookmarksGrid.innerHTML='<div class="empty-state"><div class="icon">📭</div><h3>暂无书签</h3><p>点击右上角「新建书签」添加第一个书签</p></div>';return;}
+  el.bookmarksGrid.innerHTML=f.map(bm=>{
+    const fv=getFavicon(bm.url),dm=getDomain(bm.url);
+    return '<div class="bookmark-card'+(bm.isPinned?' pinned':'')+(bm.isPrivate?' private':'')+'">'+
+      '<div class="bookmark-card-header">'+
+        '<a class="bookmark-title" href="'+bm.url+'" target="_blank" rel="noopener">'+(fv?'<img class="favicon" src="'+fv+'" alt="">':'')+bm.title+'</a>'+
+        '<div class="bookmark-badges">'+(bm.isPinned?'<span class="badge badge-pinned">置顶</span>':'')+(bm.isPrivate?'<span class="badge badge-private">私有</span>':'')+'</div>'+
+      '</div>'+
+      '<div class="bookmark-url">'+dm+'</div>'+
+      '<div class="bookmark-desc">'+(bm.description||'暂无描述')+'</div>'+
+      '<div class="bookmark-footer">'+
+        '<span class="bookmark-category">📁 '+(bm.category||'未分类')+'</span>'+
+        (authenticated?'<div class="bookmark-actions"><button onclick="editBookmark(''+bm.id+'')">✏️ 编辑</button><button class="danger" onclick="deleteBookmark(''+bm.id+'')">🗑️ 删除</button></div>':'')+
+      '</div>'+
     '</div>';
   }).join('');
 }
 
-async function loadData() {
-  try {
-    const [bmData, catData, authData] = await Promise.all([
-      apiGet('/bookmarks'),
-      apiGet('/categories'),
-      apiGet('/auth/status')
-    ]);
-    bookmarks = bmData.bookmarks || [];
-    categories = catData.categories || [];
-    authenticated = authData.authenticated || bmData.authenticated || false;
-
-    // Update auth button
-    if (authenticated) {
-      authBtn.textContent = '退出';
-      authBtn.classList.add('logout');
-      addBtn.style.display = 'inline-flex';
-    } else {
-      authBtn.textContent = '登录';
-      authBtn.classList.remove('logout');
-      addBtn.style.display = 'none';
-    }
-
-    // Update category select options
-    bmCategory.innerHTML = categories.map(c => '<option value="' + c + '">' + c + '</option>').join('');
-
-    renderSidebar();
-    renderBookmarks();
-  } catch (err) {
-    showToast('加载数据失败: ' + err.message, 'error');
-  }
+async function loadData(){
+  try{
+    const [bmData,catData,authData]=await Promise.all([apiGet('/bookmarks'),apiGet('/categories'),apiGet('/auth/status')]);
+    bookmarks=bmData.bookmarks||[];categories=catData.categories||[];authenticated=authData.authenticated||bmData.authenticated||false;
+    if(authenticated){el.authBtn.textContent='退出';el.authBtn.classList.add('logout');el.addBtn.style.display='inline-flex';}
+    else{el.authBtn.textContent='登录';el.authBtn.classList.remove('logout');el.addBtn.style.display='none';}
+    el.bmCategory.innerHTML=categories.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+    renderSidebar();renderBookmarks();
+  }catch(err){showToast('加载数据失败: '+err.message,'error');}
 }
 
-async function saveBookmark() {
-  const data = {
-    title: bmTitle.value.trim(),
-    url: bmUrl.value.trim(),
-    description: bmDesc.value.trim(),
-    category: bmCategory.value,
-    isPinned: bmPinned.checked,
-    isPrivate: bmPrivate.checked
-  };
-
-  if (!data.title || !data.url) {
-    showToast('请填写标题和链接', 'error');
-    return;
-  }
-
-  saveBtn.disabled = true;
-  try {
-    if (editingId) {
-      await apiPut('/bookmarks/' + editingId, data);
-      showToast('书签已更新');
-    } else {
-      await apiPost('/bookmarks', data);
-      showToast('书签已创建');
-    }
-    closeBookmarkModal();
-    await loadData();
-  } catch (err) {
-    showToast('保存失败: ' + err.message, 'error');
-  } finally {
-    saveBtn.disabled = false;
-  }
+async function saveBookmark(){
+  const d={title:el.bmTitle.value.trim(),url:el.bmUrl.value.trim(),description:el.bmDesc.value.trim(),category:el.bmCategory.value,isPinned:el.bmPinned.checked,isPrivate:el.bmPrivate.checked};
+  if(!d.title||!d.url){showToast('请填写标题和链接','error');return;}
+  el.saveBtn.disabled=true;
+  try{if(editingId){await apiPut('/bookmarks/'+editingId,d);showToast('书签已更新');}else{await apiPost('/bookmarks',d);showToast('书签已创建');}closeBookmarkModal();await loadData();}catch(err){showToast('保存失败: '+err.message,'error');}finally{el.saveBtn.disabled=false;}
 }
 
-async function editBookmark(id) {
-  const bm = bookmarks.find(b => b.id === id);
-  if (!bm) return;
-  editingId = id;
-  bmTitle.value = bm.title;
-  bmUrl.value = bm.url;
-  bmDesc.value = bm.description || '';
-  bmCategory.value = bm.category || '未分类';
-  bmPinned.checked = bm.isPinned;
-  bmPrivate.checked = bm.isPrivate;
-  openModal(true);
+async function editBookmark(id){
+  const bm=bookmarks.find(b=>b.id===id);if(!bm)return;editingId=id;el.bmTitle.value=bm.title;el.bmUrl.value=bm.url;el.bmDesc.value=bm.description||'';el.bmCategory.value=bm.category||'未分类';el.bmPinned.checked=bm.isPinned;el.bmPrivate.checked=bm.isPrivate;openModal(true);
 }
 
-async function deleteBookmark(id) {
-  if (!confirm('确定要删除这个书签吗？')) return;
-  try {
-    await apiDelete('/bookmarks/' + id);
-    showToast('书签已删除');
-    await loadData();
-  } catch (err) {
-    showToast('删除失败: ' + err.message, 'error');
-  }
+async function deleteBookmark(id){
+  if(!confirm('确定要删除这个书签吗？'))return;
+  try{await apiDelete('/bookmarks/'+id);showToast('书签已删除');await loadData();}catch(err){showToast('删除失败: '+err.message,'error');}
 }
 
-async function login() {
-  const pwd = authPassword.value.trim();
-  if (!pwd) return;
-  try {
-    const res = await apiPost('/auth', { password: pwd });
-    if (res.success) {
-      closeAuthModalFn();
-      showToast('登录成功');
-      await loadData();
-    } else {
-      showToast(res.error || '密码错误', 'error');
-    }
-  } catch (err) {
-    showToast('登录失败: ' + err.message, 'error');
-  }
+async function login(){
+  const pwd=el.authPassword.value.trim();if(!pwd)return;
+  try{const res=await apiPost('/auth',{password:pwd});if(res.success){closeAuthModalFn();showToast('登录成功');await loadData();}else{showToast(res.error||'密码错误','error');}}catch(err){showToast('登录失败: '+err.message,'error');}
 }
 
-async function logout() {
-  try {
-    await apiDelete('/auth');
-    showToast('已退出登录');
-    await loadData();
-  } catch (err) {
-    showToast('退出失败', 'error');
-  }
+async function logout(){
+  try{await apiDelete('/auth');showToast('已退出登录');await loadData();}catch(err){showToast('退出失败','error');}
 }
 
-// --- Event Listeners ---
+el.menuBtn.addEventListener('click',toggleSidebar);el.sidebarOverlay.addEventListener('click',toggleSidebar);
+el.searchInput.addEventListener('input',()=>{el.clearSearch.classList.toggle('visible',el.searchInput.value.length>0);renderBookmarks();});
+el.clearSearch.addEventListener('click',()=>{el.searchInput.value='';el.clearSearch.classList.remove('visible');renderBookmarks();});
+el.authBtn.addEventListener('click',()=>{if(authenticated)logout();else openAuthModal();});
+el.addBtn.addEventListener('click',()=>{editingId=null;openModal(false);});
+el.saveBtn.addEventListener('click',saveBookmark);el.cancelBtn.addEventListener('click',closeBookmarkModal);el.closeModal.addEventListener('click',closeBookmarkModal);el.closeAuthModal.addEventListener('click',closeAuthModalFn);
+el.loginBtn.addEventListener('click',login);el.authPassword.addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+el.bookmarkModal.addEventListener('click',e=>{if(e.target===el.bookmarkModal)closeBookmarkModal();});
+el.authModal.addEventListener('click',e=>{if(e.target===el.authModal)closeAuthModalFn();});
 
-menuBtn.addEventListener('click', toggleSidebar);
-sidebarOverlay.addEventListener('click', toggleSidebar);
-
-searchInput.addEventListener('input', () => {
-  clearSearch.classList.toggle('visible', searchInput.value.length > 0);
-  renderBookmarks();
-});
-
-clearSearch.addEventListener('click', () => {
-  searchInput.value = '';
-  clearSearch.classList.remove('visible');
-  renderBookmarks();
-});
-
-authBtn.addEventListener('click', () => {
-  if (authenticated) logout(); else openAuthModal();
-});
-
-addBtn.addEventListener('click', () => {
-  editingId = null;
-  openModal(false);
-});
-
-saveBtn.addEventListener('click', saveBookmark);
-cancelBtn.addEventListener('click', closeBookmarkModal);
-closeModal.addEventListener('click', closeBookmarkModal);
-closeAuthModal.addEventListener('click', closeAuthModalFn);
-
-loginBtn.addEventListener('click', login);
-authPassword.addEventListener('keydown', e => { if (e.key === 'Enter') login(); });
-
-bookmarkModal.addEventListener('click', e => {
-  if (e.target === bookmarkModal) closeBookmarkModal();
-});
-authModal.addEventListener('click', e => {
-  if (e.target === authModal) closeAuthModalFn();
-});
-
-// --- Init ---
 loadData();
 </script>
 
@@ -941,35 +657,56 @@ loadData();
 </html>`;
 }
 
-// --- Main Request Handler ---
+// --- Main Request Handler with Error Wrapping ---
 
 export default async function onRequest(context) {
-  const { request, env } = context;
-  const url = new URL(request.url);
-  const pathname = url.pathname;
+  try {
+    const { request, env } = context;
+    const url = new URL(request.url);
+    const pathname = url.pathname;
 
-  // API Routes
-  if (pathname === '/api/bookmarks' || pathname === '/api/bookmarks/') {
-    return handleApiBookmarks(request, env, url);
+    // Handle CORS preflight
+    if (request.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type'
+        }
+      });
+    }
+
+    // Debug endpoint
+    if (pathname === '/api/debug' || pathname === '/api/debug/') {
+      return handleApiDebug(request, env);
+    }
+
+    // API Routes
+    if (pathname === '/api/bookmarks' || pathname === '/api/bookmarks/') {
+      return handleApiBookmarks(request, env);
+    }
+
+    if (pathname.startsWith('/api/bookmarks/')) {
+      const id = pathname.replace('/api/bookmarks/', '');
+      return handleApiBookmarkDetail(request, env, id);
+    }
+
+    if (pathname === '/api/categories' || pathname === '/api/categories/') {
+      return handleApiCategories(request, env);
+    }
+
+    if (pathname === '/api/auth' || pathname === '/api/auth/') {
+      return handleApiAuth(request, env);
+    }
+
+    if (pathname === '/api/auth/status' || pathname === '/api/auth/status/') {
+      return handleApiAuthStatus(request, env);
+    }
+
+    // Serve SPA HTML for all other routes
+    return htmlResponse(getHtmlTemplate());
+  } catch (err) {
+    return jsonResponse({ error: 'Internal error', message: err.message }, 500);
   }
-
-  if (pathname.startsWith('/api/bookmarks/')) {
-    const id = pathname.replace('/api/bookmarks/', '');
-    return handleApiBookmarkDetail(request, env, id);
-  }
-
-  if (pathname === '/api/categories' || pathname === '/api/categories/') {
-    return handleApiCategories(request, env);
-  }
-
-  if (pathname === '/api/auth' || pathname === '/api/auth/') {
-    return handleApiAuth(request, env);
-  }
-
-  if (pathname === '/api/auth/status' || pathname === '/api/auth/status/') {
-    return handleApiAuthStatus(request, env);
-  }
-
-  // Serve HTML for all other routes (SPA fallback)
-  return htmlResponse(getHtmlTemplate());
 }
