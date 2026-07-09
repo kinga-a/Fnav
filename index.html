@@ -817,7 +817,7 @@ class BookmarkApp {
       </div>
       <p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
       <div class="card-footer">
-        <a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener noreferrer" class="card-link" onclick="event.stopPropagation()">🔗 ${this.truncateUrl(b.url)}</a>
+        <a href="${this.escapeHtml(b.url)}" target="_blank" rel="noopener noreferrer" class="card-link" onclick="event.stopPropagation()">🌐 ${this.truncateUrl(b.url)}</a>
         ${actionHtml}
       </div>
       </div>`;
