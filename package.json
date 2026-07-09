@@ -1,0 +1,6 @@
+{
+  "name": "bookmark-manager",
+  "version": "1.0.0",
+  "description": "EdgeOne Pages Bookmark Manager with KV storage",
+  "private": true
+}
