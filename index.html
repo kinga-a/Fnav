@@ -526,15 +526,11 @@
           <label class="form-label">描述</label>
           <textarea class="form-textarea" id="formDesc" placeholder="可选：添加描述..."></textarea>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">分类</label>
-            <select class="form-select" id="formCategory"></select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">新分类</label>
-            <input type="text" class="form-input" id="formNewCategory" placeholder="或输入新分类">
-          </div>
+        <!-- 仅保留分类下拉选择，移除新分类输入框 -->
+        <div class="form-group">
+          <label class="form-label">分类</label>
+          <select class="form-select" id="formCategory"></select>
+          <div class="form-hint">如需新增分类，请在侧边栏点击「新建分类」</div>
         </div>
         <div class="form-row">
           <div class="checkbox-group">
@@ -763,8 +759,8 @@ class BookmarkApp {
     const title = document.getElementById('formTitle').value.trim();
     const url = document.getElementById('formUrl').value.trim();
     const description = document.getElementById('formDesc').value.trim();
-    const newCategory = document.getElementById('formNewCategory').value.trim();
-    const category = newCategory || document.getElementById('formCategory').value;
+    // 已移除新分类输入框逻辑，直接读取下拉选择
+    const category = document.getElementById('formCategory').value;
     const pinned = document.getElementById('formPinned').checked;
     const isPrivate = document.getElementById('formPrivate').checked;
     if (!title || !url) { this.showToast('请填写标题和链接', 'error'); return; }
