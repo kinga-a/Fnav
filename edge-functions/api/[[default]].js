@@ -62,6 +62,9 @@ export default async function onRequest(context) {
       return new Response(JSON.stringify({ categories: c }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'POST') {
+      if (!(await authCheck())) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
       var name = body.name;
       if (!name || !name.trim()) {
         return new Response(JSON.stringify({ error: 'Name required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
@@ -94,6 +97,13 @@ export default async function onRequest(context) {
           }
         }
       } catch (e) {}
+
+      // 未登录过滤私有书签
+      const isLogin = await authCheck();
+      if (!isLogin) {
+        b = b.filter(item => !item.isPrivate);
+      }
+
       b.sort(function(a, b) {
         if (a.pinned && !b.pinned) return -1;
         if (!a.pinned && b.pinned) return 1;
@@ -102,6 +112,10 @@ export default async function onRequest(context) {
       return new Response(JSON.stringify({ bookmarks: b }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'POST') {
+      // 创建书签鉴权
+      if (!(await authCheck())) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
       if (!body.title || !body.url) {
         return new Response(JSON.stringify({ error: 'Title and URL required' }), { status: 400, headers: { 'Content-Type': 'application/json' } });
       }
@@ -135,6 +149,10 @@ export default async function onRequest(context) {
       return new Response(JSON.stringify({ bookmark: d }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'PUT') {
+      // 编辑鉴权
+      if (!(await authCheck())) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
       var e = await kv.get('bookmark:' + id, 'json');
       if (!e) {
         return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
@@ -154,6 +172,10 @@ export default async function onRequest(context) {
       return new Response(JSON.stringify({ bookmark: u }), { headers: { 'Content-Type': 'application/json' } });
     }
     if (method === 'DELETE') {
+      // 删除鉴权
+      if (!(await authCheck())) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
       await kv.delete('bookmark:' + id);
       return new Response(null, { status: 204 });
     }
