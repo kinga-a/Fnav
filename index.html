@@ -21,8 +21,8 @@
     --text: #1e293b;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0,0,0.1), 0 1px 2px rgba(0,0,0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -57,7 +57,7 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
   }
   .sidebar-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
   .sidebar-close {
@@ -66,11 +66,10 @@
   }
   .sidebar-close:hover { color: #fff; }
   .nav-section { margin-bottom: 1.5rem; }
-  /* 侧边标题行垂直居中，解决按钮高低错位 */
   .nav-label-wrap {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     margin-bottom: 0.75rem;
     padding-left: 0.75rem;
   }
@@ -78,7 +77,7 @@
     font-size: 0.75rem; text-transform: uppercase;
     letter-spacing: 0.05em; color: #94a3b8;
   }
-  /* 新建分类圆形按钮 完全垂直居中 */
+  /* 优化：侧边栏新建分类圆形加号按钮 */
   .cat-add-btn {
     width: 20px;
     height: 20px;
@@ -93,7 +92,6 @@
     font-size: 16px;
     line-height: 1;
     transition: all 0.2s ease;
-    flex-shrink: 0;
   }
   .cat-add-btn:hover {
     background: var(--primary);
@@ -149,7 +147,7 @@
     font-size:14px; cursor:pointer; display:none;
   }
   .category-item:hover .cat-del-btn { display:block; }
-  .cat-del-btn:hover { background:rgba(239,68,0.2); color:#ef4444; }
+  .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
 
   .main-content {
     flex: 1;
@@ -253,7 +251,6 @@
     height: 0;
     margin-bottom: 0;
   }
-  /* 分类标题：文字 + 折叠按钮 + 数量，靠左排列，取消margin-left:auto */
   .category-group-title {
     margin: 32px 0 12px;
     font-size: 18px;
@@ -271,24 +268,24 @@
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
   }
-  /* 折叠按钮样式 */
+  /* 优化折叠按钮样式，替换单调三角 */
   .toggle-fold {
+    margin-left: 10px;
     background: rgba(0,0,0,0.04);
     border: none;
     font-size: 18px;
     color: var(--text-muted);
     cursor: pointer;
     width: 26px;
-    height: 26;
+    height: 26px;
     border-radius: 6px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
-    flex-shrink: 0;
   }
   .toggle-fold:hover {
-    background: rgba(79,70,0.1);
+    background: rgba(79,70,229,0.1);
     color: var(--primary);
     transform: scale(1.08);
   }
@@ -298,13 +295,13 @@
     border: 1px solid var(--border);
     border-radius: 1rem;
     padding: 1.4rem;
-    box-shadow: 0 1px 4px rgba(0,0,0.05);
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
     transition: all 0.2s ease;
     position: relative;
     cursor: pointer;
   }
   .bookmark-card:hover {
-    box-shadow: 0 12px 24px -6px rgba(0,0,0.08);
+    box-shadow: 0 12px 24px -6px rgba(0,0,0,0.08);
     transform: translateY(-3px);
   }
   .bookmark-card.pinned {
@@ -395,7 +392,7 @@
 
   .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0.5);
+    background: rgba(0,0,0,0.5);
     z-index: 2000;
     display: flex; align-items: center; justify-content: center;
     opacity: 0; visibility: hidden;
@@ -453,7 +450,7 @@
   }
   .form-textarea { resize: vertical; min-height: 80px; }
   .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
-  .form-row { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .checkbox-group {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 0;
@@ -622,14 +619,13 @@ select {
       </a>
     </div>
     <div class="nav-section">
-      <!-- nav-label-wrap 自带align-items:center，按钮垂直居中无错位 -->
       <div class="nav-label-wrap">
         <span class="nav-label">分类（可拖动排序）</span>
         <button class="cat-add-btn" id="addCategoryBtn" onclick="app.showAddCategory()">+</button>
       </div>
       <div id="categoryList" class="category-list"></div>
     </div>
-    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,0.1);">
+    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
       <div class="nav-item" onclick="app.toggleAuth()">
         <span class="icon" id="authIcon">🔓</span>
         <span id="authStatus">未验证</span>
@@ -879,14 +875,14 @@ class BookmarkApp {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
       const isFold = this.foldState[name];
+      // 优化：展开显示减号，折叠显示加号，替代三角
       const foldIcon = isFold ? '+' : '−';
-      /* 关键修改：渲染顺序 分类名 → +/- → (数量) */
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
           <span class="dot" style="background:${color}"></span>
           ${this.escapeHtml(name)}
-          <button class="toggle-fold" onclick="app.toggleFold('${this.escapeHtml(name)}')">${foldIcon}</button>
           <span class="count-text">(${list.length})</span>
+          <button class="toggle-fold" onclick="app.toggleFold('${this.escapeHtml(name)}')">${foldIcon}</button>
         </h2>
         <div class="bookmark-grid ${isFold ? 'hidden' : ''}">`;
       list.forEach(b => {
@@ -1028,7 +1024,7 @@ class BookmarkApp {
     }
     const hasBookmark = this.bookmarks.some(b=>b.category === name);
     if(hasBookmark) {
-      this.showToast(`分类「${name}」下存在书签，请先清空`, 'error');
+      this.showToast(`分类「${name}」下存在书签，请先清空书签`, 'error');
       return;
     }
     if(!confirm(`确定删除空分类「${name}」？`)) return;
@@ -1039,6 +1035,7 @@ class BookmarkApp {
       });
       if(res.status === 401) {
         this.showToast('身份失效，请重新验证', 'error');
+        this.toggleAuth();
         return;
       }
       if(!res.ok) throw new Error('删除失败');
@@ -1140,7 +1137,7 @@ class BookmarkApp {
   }
   closeCategoryModal() { document.getElementById('categoryModal').classList.remove('open'); }
   async addCategory() {
-    if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); return; }
+    if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); this.toggleAuth(); return; }
     const name = document.getElementById('newCategoryName').value.trim();
     if (!name) return;
     if (this.categories.includes(name)) { this.showToast('分类已存在', 'error'); return; }
@@ -1151,7 +1148,7 @@ class BookmarkApp {
         body: JSON.stringify({ name })
       });
       const json = await res.json();
-      if (res.status === 401) { this.showToast('身份失效', 'error'); return; }
+      if (res.status === 401) { this.showToast('身份失效', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error(json.error || '创建失败');
       this.showToast('分类创建成功', 'success');
       this.closeCategoryModal();
