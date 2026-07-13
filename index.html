@@ -65,6 +65,9 @@
     overflow: hidden !important;
     touch-action: none;
   }
+  body.locked .main-content {
+    pointer-events: none;
+  }
   .app-layout { display: flex; min-height: 100vh; }
   .sidebar {
     width: 260px;
@@ -869,11 +872,36 @@ class BookmarkApp {
   /* ===== 统一触摸隔离：阻止侧边栏/弹窗上的 touchmove 冒泡到 body ===== */
   _setupTouchIsolation() {
     const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
     const overlays = document.querySelectorAll('.modal-overlay');
-    // 侧边栏滑动不穿透
+
+    // ===== 阻止滚轮事件穿透（PC + 安卓）=====
+    const preventWheel = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    // 侧边栏遮罩层：阻止所有滚轮/触摸事件穿透到 body
+    sidebarOverlay.addEventListener('wheel', preventWheel, { passive: false });
+    sidebarOverlay.addEventListener('touchmove', preventWheel, { passive: false });
+
+    // 侧边栏本身：阻止滚轮事件冒泡到 body（但保留内部滚动）
+    sidebar.addEventListener('wheel', (e) => {
+      const isAtTop = sidebar.scrollTop <= 0;
+      const isAtBottom = sidebar.scrollTop + sidebar.clientHeight >= sidebar.scrollHeight;
+      const deltaY = e.deltaY;
+      // 如果滚动到边界且继续向同方向滚动，阻止默认行为（防止穿透）
+      if ((isAtTop && deltaY < 0) || (isAtBottom && deltaY > 0)) {
+        e.preventDefault();
+      }
+      e.stopPropagation();
+    }, { passive: false });
+
+    // 侧边栏触摸不穿透
     sidebar.addEventListener('touchmove', (e) => {
       e.stopPropagation();
     }, { passive: false });
+
     // 弹窗遮罩层滑动不穿透
     overlays.forEach(overlay => {
       overlay.addEventListener('touchmove', (e) => {
@@ -882,13 +910,20 @@ class BookmarkApp {
         }
         e.stopPropagation();
       }, { passive: false });
+      // 弹窗遮罩层也阻止滚轮
+      overlay.addEventListener('wheel', preventWheel, { passive: false });
     });
+
     // 弹窗内容区域滑动不穿透到 body
     document.querySelectorAll('.modal').forEach(modal => {
       modal.addEventListener('touchmove', (e) => {
         e.stopPropagation();
       }, { passive: true });
+      modal.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
     });
+
     // 弹窗 body 区域滑动不穿透（处理 iOS 橡皮筋效果）
     document.querySelectorAll('.modal-body').forEach(body => {
       body.addEventListener('touchmove', (e) => {
@@ -904,6 +939,10 @@ class BookmarkApp {
         }
         e.stopPropagation();
       }, { passive: false });
+      // 弹窗 body 也阻止滚轮冒泡
+      body.addEventListener('wheel', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
     });
   }
   async loadData() {
@@ -1369,6 +1408,11 @@ class BookmarkApp {
     if (this._lockCount === 0) {
       this._bodyScrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
       document.body.classList.add('locked');
+      document.documentElement.style.overflow = 'hidden';
+      document.documentElement.style.height = '100%';
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100%';
+      document.body.style.position = 'relative';
     }
     this._lockCount++;
   }
@@ -1377,6 +1421,11 @@ class BookmarkApp {
     this._lockCount = Math.max(0, this._lockCount - 1);
     if (this._lockCount === 0) {
       document.body.classList.remove('locked');
+      document.documentElement.style.overflow = '';
+      document.documentElement.style.height = '';
+      document.body.style.overflow = '';
+      document.body.style.height = '';
+      document.body.style.position = '';
       window.scrollTo(0, this._bodyScrollTop);
     }
   }
