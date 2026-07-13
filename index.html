@@ -59,6 +59,9 @@
   body.modal-open {
     overflow: hidden;
     touch-action: none;
+    position: fixed;
+    width: 100%;
+    height: 100%;
   }
   .app-layout { display: flex; min-height: 100vh; }
   .sidebar {
@@ -836,6 +839,7 @@ class BookmarkApp {
     this.sidebarOpen = false;
     this.dragItem = null;
     this.foldState = {};
+    this._bodyScrollTop = 0;
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -1141,8 +1145,8 @@ class BookmarkApp {
     document.getElementById('bookmarkForm').reset();
     document.getElementById('bookmarkId').value = '';
     document.getElementById('modalTitle').textContent = '新建书签';
+    this._lockBodyScroll();
     document.getElementById('bookmarkModal').classList.add('open');
-    document.body.classList.add('modal-open');
     document.getElementById('formTitle').focus();
   }
   editBookmark(id) {
@@ -1156,8 +1160,8 @@ class BookmarkApp {
     document.getElementById('formPinned').checked = b.pinned;
     document.getElementById('formPrivate').checked = b.isPrivate;
     document.getElementById('modalTitle').textContent = '编辑书签';
+    this._lockBodyScroll();
     document.getElementById('bookmarkModal').classList.add('open');
-    document.body.classList.add('modal-open');
   }
   closeModalByOverlay(e) { if(e.target.id === 'bookmarkModal') this.closeModal(); }
   closeAuthModalByOverlay(e) { if(e.target.id === 'authModal') this.closeAuthModal(); }
@@ -1165,7 +1169,7 @@ class BookmarkApp {
   closeDeleteModalByOverlay(e) { if(e.target.id === 'deleteModal') this.closeDeleteModal(); }
   closeModal() {
     document.getElementById('bookmarkModal').classList.remove('open');
-    document.body.classList.remove('modal-open');
+    this._unlockBodyScroll();
   }
   async saveBookmark() {
     if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); this.toggleAuth(); return; }
@@ -1193,8 +1197,8 @@ class BookmarkApp {
       this.renderBookmarks();
     } catch (e) { this.showToast(e.message, 'error'); }
   }
-  deleteBookmark(id) { this.deleteTarget = id; document.getElementById('deleteModal').classList.add('open'); document.body.classList.add('modal-open'); }
-  closeDeleteModal() { document.getElementById('deleteModal').classList.remove('open'); this.deleteTarget = null; document.body.classList.remove('modal-open'); }
+  deleteBookmark(id) { this.deleteTarget = id; this._lockBodyScroll(); document.getElementById('deleteModal').classList.add('open'); }
+  closeDeleteModal() { document.getElementById('deleteModal').classList.remove('open'); this.deleteTarget = null; this._unlockBodyScroll(); }
   async confirmDelete() {
     if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); this.toggleAuth(); return; }
     if (!this.deleteTarget) return;
@@ -1216,11 +1220,11 @@ class BookmarkApp {
       return;
     }
     document.getElementById('newCategoryName').value = '';
+    this._lockBodyScroll();
     document.getElementById('categoryModal').classList.add('open');
-    document.body.classList.add('modal-open');
     document.getElementById('newCategoryName').focus();
   }
-  closeCategoryModal() { document.getElementById('categoryModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
+  closeCategoryModal() { document.getElementById('categoryModal').classList.remove('open'); this._unlockBodyScroll(); }
   async addCategory() {
     if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); return; }
     const name = document.getElementById('newCategoryName').value.trim();
@@ -1246,12 +1250,12 @@ class BookmarkApp {
     else {
       document.getElementById('authPassword').value = '';
       document.getElementById('authError').textContent = '';
+      this._lockBodyScroll();
       document.getElementById('authModal').classList.add('open');
-      document.body.classList.add('modal-open');
       document.getElementById('authPassword').focus();
     }
   }
-  closeAuthModal() { document.getElementById('authModal').classList.remove('open'); document.body.classList.remove('modal-open'); }
+  closeAuthModal() { document.getElementById('authModal').classList.remove('open'); this._unlockBodyScroll(); }
   async doAuth() {
     const password = document.getElementById('authPassword').value;
     try {
@@ -1306,6 +1310,18 @@ class BookmarkApp {
       navPrivate.style.display = 'none';
       if(fabBtn) fabBtn.style.display = 'none';
     }
+  }
+  /* ===== 锁定 body 滚动：记录当前滚动位置，固定 body ===== */
+  _lockBodyScroll() {
+    this._bodyScrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+    document.body.style.top = '-' + this._bodyScrollTop + 'px';
+    document.body.classList.add('modal-open');
+  }
+  /* ===== 解锁 body 滚动：恢复滚动位置 ===== */
+  _unlockBodyScroll() {
+    document.body.classList.remove('modal-open');
+    document.body.style.top = '';
+    window.scrollTo(0, this._bodyScrollTop);
   }
   showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
