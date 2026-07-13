@@ -19,7 +19,9 @@
 ```
 /
 ├── edge-functions/
-│   └── [[default]].js    # 主入口文件 (API + SPA HTML)
+│   └── api/
+│        └──[[default]].js    # 主入口文件 
+├── index.html
 ├── edgeone.json          # EdgeOne 项目配置
 └── README.md
 ```
