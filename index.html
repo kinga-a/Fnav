@@ -21,10 +21,10 @@
     --text: #1e293b;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0.06);
-    /* 弹窗轻量阴影 */
+    --shadow: 0 1px 3px rgba(0,0,0.1), 0 1px 2px rgba(0,0.06);
+    /* 弹窗阴影弱化，替换轻量阴影 */
     --shadow-modal: 0 2px 8px rgba(0,0,0,0.08);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -68,11 +68,11 @@
   }
   .sidebar-close:hover { color: #fff; }
   .nav-section { margin-bottom: 1.5rem; }
-  /* 侧边分类标题 垂直居中圆形加号按钮 */
+  /* 新增：侧边分类标题行布局 + 圆形加号按钮样式 */
   .nav-label-wrap {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     margin-bottom: 0.75rem;
     padding-left: 0.75rem;
   }
@@ -111,13 +111,13 @@
     font-size: 0.9375rem;
   }
   .nav-item:hover, .nav-item.active {
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,255,0.1);
     color: #fff;
   }
   .nav-item .icon { width: 20px; text-align: center; }
   .nav-item .count {
     margin-left: auto;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,0.15);
     padding: 0.125rem 0.5rem;
     border-radius: 9999px;
     font-size: 0.75rem;
@@ -136,7 +136,7 @@
   .category-item:active { cursor: grabbing; }
   .category-item:hover, .category-item.active {
     color: #fff;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,0.08);
   }
   .category-item .cat-color {
     width: 8px; height: 8px; border-radius: 50%;
@@ -272,7 +272,7 @@
     font-size:13px;color:var(--text-muted);font-weight:normal;
   }
   .toggle-fold {
-    margin-left: auto;
+    margin-left: 5px;
     background: rgba(0,0,0,0.04);
     border: none;
     font-size: 18px;
@@ -390,9 +390,9 @@
     width:100%;
   }
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
-  .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: text); margin-bottom: 0.5rem; }
+  .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
 
-  /* 弹窗：iPhone上下安全区 + 弱阴影 */
+  /* 修改：弹窗苹果上下安全区留白 + 弹窗阴影弱化 */
   .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
@@ -410,7 +410,7 @@
     width: 90%; max-width: 500px;
     max-height: 82vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-modal);
+    box-shadow: var(--shadow-modal); /* 替换轻量阴影 */
     transform: scale(0.95);
     transition: transform 0.3s;
     margin:12px 0;
@@ -453,11 +453,8 @@
   }
   .form-textarea { resize: vertical; min-height: 80px; }
   .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
-  /* PC双列，手机自动单列【修复手机上下分行问题】 */
+  /* 关键修复：手机端表单依旧两栏并排，删除1fr单列规则 */
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-  @media (max-width: 768px) {
-    .form-row { grid-template-columns: 1fr !important; }
-  }
   .checkbox-group {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 0;
@@ -468,7 +465,6 @@
     cursor: pointer;
   }
   .checkbox-group label { cursor: pointer; font-size: 0.875rem; }
-  /* 弹窗底部按钮栏，代码已存在，刷新即可显示 */
   .modal-footer {
     padding: 1rem 1.5rem;
     display: flex; justify-content: flex-end; gap: 0.75rem;
@@ -532,7 +528,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* 右下角悬浮按钮弱阴影 */
   .fab-add-bookmark {
     position: fixed;
     right: 24px;
@@ -545,6 +540,7 @@
     border: none;
     font-size: 28px;
     line-height: 1;
+    /* 减弱悬浮按钮阴影 */
     box-shadow: 0 3px 8px rgba(79,70,229,0.2);
     cursor: pointer;
     z-index: 900;
@@ -598,6 +594,7 @@ select {
       font-size: 0.5rem;
       padding: 0.1rem 0.3rem;
     }
+    /* 删掉这里的.form-row单列代码，手机保持并排 */
     .top-bar { padding: 0.75rem 1rem; }
     .search-box { max-width: none; }
     
@@ -627,6 +624,7 @@ select {
         <span class="count" id="countPrivate">0</span>
       </a>
     </div>
+    <!-- 修改：分类标题同行圆形加号按钮 -->
     <div class="nav-section">
       <div class="nav-label-wrap">
         <span class="nav-label">分类（可拖动排序）</span>
@@ -648,6 +646,7 @@ select {
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
       </div>
+      <!-- 已彻底删除顶部新建书签按钮 -->
       <div class="top-actions" id="topActions"></div>
     </div>
     <div class="content-area">
@@ -689,7 +688,7 @@ select {
           <select class="form-select" id="formCategory"></select>
           <div class="form-hint">如需新增分类，请在侧边栏分类旁「+」</div>
         </div>
-        <!-- 修复：PC并排，手机自动上下单行 -->
+        <!-- 修复：置顶、私有横向并排，手机不再换行 -->
         <div class="form-row">
           <div class="checkbox-group">
             <input type="checkbox" id="formPinned">
@@ -702,7 +701,7 @@ select {
         </div>
       </form>
     </div>
-    <!-- 弹窗底部取消/保存按钮，代码完整存在，刷新即可显示 -->
+    <!-- 底部取消保存按钮原本就存在，无缺失 -->
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="app.closeModal()">取消</button>
       <button class="btn btn-primary" onclick="app.saveBookmark()">保存</button>
@@ -1138,6 +1137,7 @@ class BookmarkApp {
   showAddCategory() {
     if(!this.isAuthenticated){
       this.showToast('请先验证身份', 'error');
+      this.toggleAuth();
       return;
     }
     document.getElementById('newCategoryName').value = '';
@@ -1210,7 +1210,7 @@ class BookmarkApp {
     });
     this.showToast('已退出验证', 'info');
   }
-  // 登录状态控制按钮显隐
+  // 修改：控制按钮显隐逻辑
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
     const status = document.getElementById('authStatus');
