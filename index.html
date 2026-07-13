@@ -9,22 +9,49 @@
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   :root {
-    --primary: #4f46e5;
-    --primary-hover: #4338ca;
-    --danger: #ef4444;
-    --success: #22c55e;
-    --warning: #f59e0b;
-    --bg: #f8fafc;
+    /* 主色调柔和靛蓝，低饱和高级感 */
+    --primary: #4361ee;
+    --primary-light: #4895ef;
+    --primary-hover: #3a54d6;
+    --primary-glow: rgba(67, 97, 238, 0.12);
+    --danger: #f72585;
+    --danger-light: rgba(247, 37, 133, 0.12);
+    --success: #06d6a0;
+    --success-light: rgba(6, 214, 160, 0.12);
+    --warning: #ffd166;
+    --warning-dark: #e6b84e;
+    --warning-light: rgba(255, 209, 102, 0.15);
+
+    /* 中性分层色彩 护眼柔和 */
+    --bg: #f7f9fc;
     --card-bg: #ffffff;
-    --sidebar-bg: #1e293b;
+    --sidebar-bg: #1d2b41;
+    --sidebar-hover: rgba(255,255,255,0.06);
+    --sidebar-active: rgba(67, 97, 238, 0.18);
     --sidebar-text: #cbd5e1;
-    --text: #1e293b;
+    --sidebar-muted: #94a3b8;
+    --text: #0f172a;
     --text-muted: #64748b;
+    --text-light: #94a3b8;
     --border: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0,0,0.1), 0 1px 2px rgba(0,0.06);
-    /* 弹窗阴影弱化，替换轻量阴影 */
-    --shadow-modal: 0 2px 8px rgba(0,0,0,0.08);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
+    --border-light: #f1f5f9;
+
+    /* 统一阴影层级 */
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 2px 8px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 10px 25px -5px rgba(15, 23, 42, 0.1), 0 4px 10px -3px rgba(15, 23, 42, 0.06);
+    --shadow-fab: 0 6px 18px rgba(67, 97, 238, 0.3);
+
+    /* 统一圆角梯度 */
+    --radius-xs: 4px;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 20px;
+    --radius-full: 9999px;
+
+    /* 过渡统一 */
+    --trans-base: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -32,8 +59,10 @@
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
+    line-height: 1.55;
   }
   .app-layout { display: flex; min-height: 100vh; }
+  /* 侧边栏 */
   .sidebar {
     width: 260px;
     background: var(--sidebar-bg);
@@ -41,212 +70,233 @@
     position: fixed;
     left: 0; top: 0; bottom: 0;
     transform: translateX(-100%);
-    transition: transform 0.3s ease;
+    transition: var(--trans-base);
     z-index: 1000;
     overflow-y: auto;
-    padding: 1.5rem 1rem;
+    padding: 1.75rem 1.25rem;
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.55);
     z-index: 999;
     opacity: 0; visibility: hidden;
-    transition: all 0.3s;
+    transition: var(--trans-base);
+    backdrop-filter: blur(2px);
   }
   .sidebar-overlay.open { opacity: 1; visibility: visible; }
   .sidebar-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.5rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
-  .sidebar-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
+  .sidebar-title { font-size: 1.3rem; font-weight: 700; color: #fff; letter-spacing: 0.3px; }
   .sidebar-close {
-    background: none; border: none; color: var(--sidebar-text);
-    font-size: 1.5rem; cursor: pointer; padding: 0.25rem;
+    background: none; border: none; color: var(--sidebar-muted);
+    font-size: 1.6rem; cursor: pointer; padding: 0.3rem;
+    border-radius: var(--radius-sm);
+    transition: var(--trans-base);
   }
-  .sidebar-close:hover { color: #fff; }
-  .nav-section { margin-bottom: 1.5rem; }
-  /* 新增：侧边分类标题行布局 + 圆形加号按钮样式 */
+  .sidebar-close:hover { color: #fff; background: var(--sidebar-hover); }
+  .nav-section { margin-bottom: 2rem; }
   .nav-label-wrap {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    margin-bottom: 0.75rem;
+    justify-content: space-between;
+    margin-bottom: 0.85rem;
     padding-left: 0.75rem;
   }
   .nav-label {
-    font-size: 0.75rem; text-transform: uppercase;
-    letter-spacing: 0.05em; color: #94a3b8;
+    font-size: 0.725rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--sidebar-muted);
+    font-weight: 500;
   }
+  /* 侧边新建分类圆形按钮 */
   .cat-add-btn {
-    width: 20px;
-    height: 20px;
+    width: 28px;
+    height: 28px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: rgba(255,255,255,0.08);
+    background: var(--sidebar-hover);
     border: none;
-    color: #94a3b8;
-    border-radius: 50%;
+    color: var(--sidebar-muted);
+    border-radius: var(--radius-full);
     cursor: pointer;
-    font-size: 16px;
+    font-size: 17px;
     line-height: 1;
-    transition: all 0.2s ease;
+    transition: var(--trans-base);
     align-self: center;
   }
   .cat-add-btn:hover {
     background: var(--primary);
     color: #fff;
+    box-shadow: 0 0 0 3px var(--primary-glow);
   }
   .nav-item {
-    display: flex; align-items: center; gap: 0.75rem;
-    padding: 0.625rem 0.75rem;
-    border-radius: 0.5rem;
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.725rem 0.85rem;
+    border-radius: var(--radius-sm);
     cursor: pointer;
-    transition: all 0.2s;
+    transition: var(--trans-base);
     color: var(--sidebar-text);
     text-decoration: none;
-    font-size: 0.9375rem;
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
   }
-  .nav-item:hover, .nav-item.active {
-    background: rgba(255,255,0.1);
+  .nav-item:hover { background: var(--sidebar-hover); color: #fff; }
+  .nav-item.active {
+    background: var(--sidebar-active);
     color: #fff;
   }
-  .nav-item .icon { width: 20px; text-align: center; }
+  .nav-item .icon { width: 20px; text-align: center; font-size: 1.05rem; }
   .nav-item .count {
     margin-left: auto;
-    background: rgba(255.255,255,0.15);
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
+    background: rgba(255,255,255,0.1);
+    padding: 0.15rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.725rem;
+    color: var(--sidebar-muted);
   }
   .category-list { margin-left: 0.5rem; }
   .category-item {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 0.75rem 0.5rem 2rem;
-    border-radius: 0.5rem;
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.65rem 0.85rem 0.65rem 2rem;
+    border-radius: var(--radius-sm);
     cursor: grab;
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     color: var(--sidebar-text);
-    transition: all 0.2s;
+    transition: var(--trans-base);
     user-select: none;
+    margin-bottom: 0.2rem;
   }
   .category-item:active { cursor: grabbing; }
-  .category-item:hover, .category-item.active {
+  .category-item:hover { color: #fff; background: var(--sidebar-hover); }
+  .category-item.active {
     color: #fff;
-    background: rgba(255,255,0.08);
+    background: var(--sidebar-active);
   }
   .category-item .cat-color {
-    width: 8px; height: 8px; border-radius: 50%;
+    width: 9px; height: 9px; border-radius: var(--radius-full);
     flex-shrink: 0;
   }
   .cat-text { flex:1; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .cat-count { font-size: 0.75rem; opacity: 0.6; margin-right:4px; }
+  .cat-count { font-size: 0.725rem; opacity: 0.65; margin-right:6px; }
   .cat-del-btn {
-    background: transparent; border:none; color:#94a3b8;
-    width:18px; height:18px; border-radius:4px;
-    font-size:14px; cursor:pointer; display:none;
+    background: transparent; border:none; color:var(--sidebar-muted);
+    width:20px; height:20px; border-radius:var(--radius-xs);
+    font-size:15px; cursor:pointer; display:none;
+    transition: var(--trans-base);
   }
-  .category-item:hover .cat-del-btn { display:block; }
-  .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
+  .category-item:hover .cat-del-btn { display:flex; align-items:center; justify-content:center; }
+  .cat-del-btn:hover { background:var(--danger-light); color:var(--danger); }
 
   .main-content {
     flex: 1;
     margin-left: 0;
-    transition: margin-left 0.3s;
+    transition: var(--trans-base);
     min-height: 100vh;
   }
+  /* 顶部导航栏 */
   .top-bar {
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
-    padding: 1.1rem 24px;
+    padding: 1.25rem 28px;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 1.25rem;
     position: sticky;
     top: 0;
     z-index: 100;
+    box-shadow: var(--shadow-sm);
   }
   .menu-btn {
     background: none; border: none;
-    font-size: 1.5rem; cursor: pointer;
-    color: var(--text); padding: 0.25rem;
+    font-size: 1.6rem; cursor: pointer;
+    color: var(--text); padding: 0.3rem;
     display: flex; align-items: center; justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: var(--trans-base);
   }
+  .menu-btn:hover { background: var(--bg); color: var(--primary); }
   .search-box {
     flex: 1;
-    max-width: 600px;
+    max-width: 650px;
     margin: 0 auto;
     position: relative;
   }
   .search-box input {
     width: 100%;
-    padding: 0.625rem 1rem 0.625rem 2.5rem;
+    padding: 0.725rem 1rem 0.725rem 2.75rem;
     border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    font-size: 0.9375rem;
+    border-radius: var(--radius-md);
+    font-size: 0.95rem;
     background: var(--bg);
-    transition: all 0.2s;
+    transition: var(--trans-base);
   }
   .search-box input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+    background: #fff;
   }
   .search-box .search-icon {
     position: absolute;
-    left: 0.875rem; top: 50%;
+    left: 1rem; top: 50%;
     transform: translateY(-50%);
     color: var(--text-muted);
     pointer-events: none;
+    font-size: 1.05rem;
   }
   .top-actions {
-    display: flex; gap: 0.5rem;
+    display: flex; gap: 0.75rem;
   }
+  /* 通用按钮样式统一 */
   .btn {
-    display: inline-flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    border-radius: 0.5rem;
-    font-size: 0.875rem; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 0.55rem;
+    padding: 0.6rem 1.1rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.9rem; font-weight: 500;
     cursor: pointer; border: none;
-    transition: all 0.2s;
+    transition: var(--trans-base);
     text-decoration: none;
   }
   .btn-primary {
-    background: var(--primary); color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    color: #fff;
+    box-shadow: 0 3px 8px var(--primary-glow);
   }
-  .btn-primary:hover { background: var(--primary-hover); }
+  .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: var(--shadow-md); }
   .btn-ghost {
     background: transparent; color: var(--text-muted);
     border: 1px solid var(--border);
   }
-  .btn-ghost:hover { background: var(--bg); color: var(--text); }
+  .btn-ghost:hover { background: var(--bg); color: var(--text); border-color: var(--text-light); }
   .btn-danger { background: var(--danger); color: #fff; }
-  .btn-danger:hover { background: #dc2626; }
-  .btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+  .btn-danger:hover { background: #e01e76; transform: translateY(-1px); }
+  .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.825rem; }
   .content-area {
-    padding: 2rem 24px;
-    max-width: 1440px;
+    padding: 2.25rem 28px;
+    max-width: 1520px;
     margin: 0 auto;
   }
   .section-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
   }
-  .section-title { font-size: 1.5rem; font-weight: 700; }
-  .section-desc { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
+  .section-title { font-size: 1.6rem; font-weight: 700; color: var(--text); }
+  .section-desc { color: var(--text-muted); font-size: 0.9rem; margin-top: 0.3rem; }
 
   #bookmarkGrid {
     display: block;
   }
   .bookmark-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 1rem;
-    margin-bottom: 32px;
-    transition: all 0.3s ease;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 36px;
+    transition: var(--trans-base);
   }
   .bookmark-grid.hidden {
     display: none;
@@ -255,66 +305,111 @@
     margin-bottom: 0;
   }
   .category-group-title {
-    margin: 32px 0 12px;
-    font-size: 18px;
+    margin: 36px 0 14px;
+    font-size: 19px;
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
   }
   .category-group-title:first-child {
     margin-top: 0;
   }
   .category-group-title .dot {
-    width:12px;height:12px;border-radius:50%;
+    width:13px;height:13px;border-radius:var(--radius-full);
   }
   .category-group-title .count-text {
-    font-size:13px;color:var(--text-muted);font-weight:normal;
-  }
-  .toggle-fold {
-    margin-left: 5px;
-    background: rgba(0,0,0,0.04);
-    border: none;
-    font-size: 18px;
-    color: var(--text-muted);
-    cursor: pointer;
-    width: 26px;
-    height: 26px;
-    border-radius: 6px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-  }
-  .toggle-fold:hover {
-    background: rgba(79,70,229,0.1);
-    color: var(--primary);
-    transform: scale(1.08);
+    font-size:14px;color:var(--text-muted);font-weight:normal;
+    margin-left: auto 10px;
   }
 
+  /* ========== 三横线折叠开关优化 ========== */
+  .menu-toggle-wrap {
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  #checkbox {
+    display: none;
+  }
+  .toggle {
+    position: relative;
+    width: 34px;
+    cursor: pointer;
+    margin: auto;
+    display: block;
+    height: calc(4px * 3 + 10px * 2);
+  }
+  .bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: calc(4px / 2);
+    background: var(--primary);
+    color: inherit;
+    opacity: 1;
+    transition: none 0.35s cubic-bezier(.5,-0.35,.35,1.5) 0s;
+  }
+  .bar--top {
+    bottom: calc(50% + 10px + 4px/ 2);
+    transition-property: bottom,margin,transform;
+    transition-delay: calc(0s + 0.35s),0s,0s;
+  }
+  .bar--middle {
+    top: calc(50% - 4px/ 2);
+    transition-property: top,opacity;
+    transition-duration: 0.35s,0s;
+    transition-delay: calc(0s + 0.35s * 1.3),calc(0s + 0.35s * 1.3);
+  }
+  .bar--bottom {
+    top: calc(50% + 10px + 4px/ 2);
+    transition-property: top,transform;
+    transition-delay: 0s;
+  }
+  #checkbox:checked + .toggle .bar--top {
+    bottom: calc(50% - 10px - 4px);
+    margin-bottom: calc(10px + 4px/ 2);
+    transform: rotate(45deg);
+    transition-delay: calc(0s + 0.35s * .3),calc(0s + 0.35s * 1.3),calc(0s + 0.35s * 1.3);
+  }
+  #checkbox:checked + .toggle .bar--middle {
+    top: calc(50% + 10px);
+    opacity: 0;
+    transition-duration: 0.35s,0s;
+    transition-delay: 0s,calc(0s + 0.35s);
+  }
+  #checkbox:checked + .toggle .bar--bottom {
+    top: calc(50% - 4px/ 2);
+    transform: rotate(-45deg);
+    transition-delay: calc(0s + 0.35s * 1.3),calc(0s + 0.35s * 1.3);
+  }
+
+  /* 书签卡片核心美化 */
   .bookmark-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 1rem;
-    padding: 1.4rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-    transition: all 0.2s ease;
+    border-radius: var(--radius-lg);
+    padding: 1.6rem;
+    box-shadow: var(--shadow-sm);
+    transition: var(--trans-base);
     position: relative;
     cursor: pointer;
+    overflow: hidden;
   }
   .bookmark-card:hover {
-    box-shadow: 0 12px 24px -6px rgba(0,0,0,0.08);
-    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-4px) scale(1.01);
+    border-color: var(--border-light);
   }
   .bookmark-card.pinned {
-    border-left: 4px solid var(--warning);
+    border-left: 5px solid var(--warning);
   }
   .bookmark-card.private {
-    border-left: 4px solid var(--primary);
+    border-left: 5px solid var(--primary);
   }
   .bookmark-card.private-locked {
-    border-left: 4px solid var(--danger);
-    opacity: 0.7;
+    border-left: 5px solid var(--danger);
+    opacity: 0.72;
     cursor: default;
   }
   .bookmark-card.private-locked .card-title,
@@ -325,23 +420,24 @@
   }
   .card-header {
     display: flex; align-items: flex-start; justify-content: space-between;
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.9rem;
   }
   .card-title {
-    font-size: 1rem; font-weight: 600;
+    font-size: 1.05rem; font-weight: 600;
     color: var(--text); word-break: break-word;
-    padding-right: 0.5rem;
+    padding-right: 0.6rem;
   }
-  .card-badges { display: flex; gap: 0.375rem; flex-shrink: 0; }
+  .card-badges { display: flex; gap: 0.45rem; flex-shrink: 0; flex-wrap: wrap; }
   .badge {
     display: inline-flex; align-items: center;
-    padding: 0.125rem 0.5rem;
-    border-radius: 9999px;
-    font-size: 0.6875rem; font-weight: 600;
+    padding: 0.18rem 0.6rem;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem; font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.03em;
   }
-  .badge-pinned { background: #fef3c7; color: #92400e; }
-  .badge-private { background: #e0e7ff; color: #3730a3; }
+  .badge-pinned { background: var(--warning-light); color: #92400e; }
+  .badge-private { background: var(--primary-glow); color: var(--primary-hover); }
   .badge-category {
     background: var(--bg);
     color: var(--text-muted);
@@ -349,9 +445,9 @@
   }
   .card-desc {
     color: var(--text-muted);
-    font-size: 0.875rem;
-    line-height: 1.5;
-    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: 1.1rem;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -361,190 +457,202 @@
     display: flex; align-items: center; justify-content: space-between;
   }
   .card-link {
-    display: inline-flex; align-items: center; gap: 0.375rem;
+    display: inline-flex; align-items: center; gap: 0.45rem;
     color: var(--primary);
-    font-size: 0.875rem; font-weight: 500;
+    font-size: 0.9rem; font-weight: 500;
     text-decoration: none;
     word-break: break-all;
+    transition: var(--trans-base);
   }
-  .card-link:hover { text-decoration: underline; }
+  .card-link:hover { text-decoration: underline; color: var(--primary-hover); }
   .card-actions {
-    display: flex; gap: 0.375rem;
+    display: flex; gap: 0.45rem;
     opacity: 0;
-    transition: opacity 0.2s;
+    transition: var(--trans-base);
   }
   .bookmark-card:hover .card-actions { opacity: 1; }
   .card-actions button {
     background: none; border: none;
     color: var(--text-muted);
-    cursor: pointer; padding: 0.25rem;
-    border-radius: 0.25rem;
-    transition: all 0.2s;
+    cursor: pointer; padding: 0.3rem;
+    border-radius: var(--radius-xs);
+    transition: var(--trans-base);
+    font-size: 1rem;
   }
   .card-actions button:hover { background: var(--bg); color: var(--text); }
-  .card-actions button.delete:hover { color: var(--danger); }
+  .card-actions button.delete:hover { color: var(--danger); background: var(--danger-light); }
+  /* 空状态 */
   .empty-state {
     text-align: center;
-    padding: 4rem 2rem;
+    padding: 5rem 2rem;
     color: var(--text-muted);
     width:100%;
   }
-  .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
-  .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
+  .empty-state .icon { font-size: 3.5rem; margin-bottom: 1.2rem; opacity: 0.35; }
+  .empty-state h3 { font-size: 1.35rem; color: var(--text); margin-bottom: 0.6rem; font-weight: 600; }
+  .empty-state p { font-size: 0.95rem; max-width: 420px; margin: 0 auto; }
 
-  /* 修改：弹窗苹果上下安全区留白 + 弹窗阴影弱化 */
+  /* 弹窗通用 */
   .modal-overlay {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0,0,0,0.58);
+    backdrop-filter: blur(4px);
     z-index: 2000;
     display: flex; align-items: center; justify-content: center;
     opacity: 0; visibility: hidden;
-    transition: all 0.3s;
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    transition: var(--trans-base);
+    padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
     box-sizing: border-box;
   }
   .modal-overlay.open { opacity: 1; visibility: visible; }
   .modal {
     background: var(--card-bg);
-    border-radius: 1rem;
-    width: 90%; max-width: 500px;
-    max-height: 82vh;
+    border-radius: var(--radius-xl);
+    width: 92%; max-width: 540px;
+    max-height: 84vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-modal); /* 替换轻量阴影 */
-    transform: scale(0.95);
-    transition: transform 0.3s;
-    margin:12px 0;
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.94) translateY(8px);
+    transition: var(--trans-base);
+    margin:14px 0;
     overflow:hidden;
   }
-  .modal-overlay.open .modal { transform: scale(1); }
+  .modal-overlay.open .modal { transform: scale(1) translateY(0); }
   .modal-header {
-    padding: 1.25rem 1.5rem;
+    padding: 1.4rem 1.75rem;
     border-bottom: 1px solid var(--border);
     display: flex; align-items: center; justify-content: space-between;
   }
-  .modal-title { font-size: 1.125rem; font-weight: 600; }
+  .modal-title { font-size: 1.2rem; font-weight: 600; color: var(--text); }
   .modal-close {
     background: none; border: none;
-    font-size: 1.5rem; color: var(--text-muted);
+    font-size: 1.6rem; color: var(--text-muted);
     cursor: pointer;
+    border-radius: var(--radius-xs);
+    padding: 0.2rem 0.4rem;
+    transition: var(--trans-base);
   }
-  .modal-body { padding: 1.5rem; }
-  .form-group { margin-bottom: 1.25rem; }
+  .modal-close:hover { background: var(--bg); color: var(--text); }
+  .modal-body { padding: 1.75rem; }
+  .form-group { margin-bottom: 1.4rem; }
   .form-label {
     display: block;
-    font-size: 0.875rem; font-weight: 500;
-    margin-bottom: 0.375rem;
+    font-size: 0.9rem; font-weight: 500;
+    margin-bottom: 0.45rem;
   }
   .form-label .required { color: var(--danger); }
   .form-input, .form-select, .form-textarea {
     width: 100%;
-    padding: 0.625rem 0.875rem;
+    padding: 0.725rem 1rem;
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    font-size: 0.9375rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.95rem;
     background: var(--bg);
-    transition: all 0.2s;
+    transition: var(--trans-base);
     font-family: inherit;
   }
   .form-input:focus, .form-select:focus, .form-textarea:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+    background: #fff;
   }
-  .form-textarea { resize: vertical; min-height: 80px; }
-  .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
-  /* 关键修复：手机端表单依旧两栏并排，删除1fr单列规则 */
-  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .form-textarea { resize: vertical; min-height: 90px; }
+  .form-hint { font-size: 0.825rem; color: var(--text-muted); margin-top: 0.3rem; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; }
   .checkbox-group {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 0;
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.6rem 0;
   }
   .checkbox-group input[type="checkbox"] {
-    width: 1.125rem; height: 1.125rem;
+    width: 1.25rem; height: 1.25rem;
     accent-color: var(--primary);
     cursor: pointer;
   }
-  .checkbox-group label { cursor: pointer; font-size: 0.875rem; }
+  .checkbox-group label { cursor: pointer; font-size: 0.9rem; }
   .modal-footer {
-    padding: 1rem 1.5rem;
-    display: flex; justify-content: flex-end; gap: 0.75rem;
-    border-top: 1px solid var(--border);
+    padding: 1.2rem 1.75rem 1.75rem;
+    display: flex; justify-content: flex-end; gap: 0.9rem;
   }
-  .auth-modal .modal { max-width: 400px; text-align: center; }
-  .auth-modal .modal-body { padding: 2rem; }
-  .auth-icon { font-size: 3rem; margin-bottom: 1rem; }
-  .auth-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem; }
-  .auth-desc { color: var(--text-muted); margin-bottom: 1.5rem; }
+  .auth-modal .modal { max-width: 420px; text-align: center; }
+  .auth-modal .modal-body { padding: 2.25rem; }
+  .auth-icon { font-size: 3.6rem; margin-bottom: 1.3rem; opacity:0.85; }
+  .auth-title { font-size: 1.35rem; font-weight: 700; margin-bottom: 0.6rem; }
+  .auth-desc { color: var(--text-muted); margin-bottom: 1.75rem; font-size:0.95rem; }
   .auth-input {
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.85rem 1.1rem;
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-sm);
     font-size: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 1.2rem;
     text-align: center;
+    background: var(--bg);
+    transition: var(--trans-base);
   }
   .auth-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    box-shadow: 0 0 0 4px var(--primary-glow);
+    background: #fff;
   }
   .auth-error {
     color: var(--danger);
-    font-size: 0.875rem;
-    margin-bottom: 1rem;
-    min-height: 1.25rem;
+    font-size: 0.9rem;
+    margin-bottom: 1.2rem;
+    min-height: 1.3rem;
   }
+  /* Toast提示 */
   .toast-container {
     position: fixed;
-    bottom: 1.5rem; right: 1.5rem;
+    bottom: 1.75rem; right: 1.75rem;
     z-index: 3000;
-    display: flex; flex-direction: column; gap: 0.5rem;
+    display: flex; flex-direction: column; gap: 0.7rem;
   }
   .toast {
     background: var(--card-bg);
     border: 1px solid var(--border);
-    border-radius: 0.5rem;
-    padding: 0.875rem 1.25rem;
-    box-shadow: var(--shadow-modal);
-    display: flex; align-items: center; gap: 0.75rem;
-    animation: slideIn 0.3s ease;
-    min-width: 280px;
+    border-radius: var(--radius-md);
+    padding: 1rem 1.4rem;
+    box-shadow: var(--shadow-lg);
+    display: flex; align-items: center; gap: 0.9rem;
+    animation: slideIn 0.32s ease;
+    min-width: 300px;
   }
-  .toast.success { border-left: 4px solid var(--success); }
-  .toast.error { border-left: 4px solid var(--danger); }
-  .toast.info { border-left: 4px solid var(--primary); }
+  .toast.success { border-left: 5px solid var(--success); }
+  .toast.error { border-left: 5px solid var(--danger); }
+  .toast.info { border-left: 5px solid var(--primary); }
   @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
+    from { transform: translateX(110%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
   .loading-spinner {
     display: inline-block;
-    width: 1.5rem; height: 1.5rem;
-    border: 2px solid var(--border);
+    width: 1.6rem; height: 1.6rem;
+    border: 2.5px solid var(--border);
     border-top-color: var(--primary);
     border-radius: 50%;
-    animation: spin 0.8s linear;
+    animation: spin 0.85s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* 右下角浮动按钮 */
   .fab-add-bookmark {
     position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: var(--primary);
+    right: 28px;
+    bottom: 28px;
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
     color: #fff;
     border: none;
-    font-size: 28px;
+    font-size: 30px;
     line-height: 1;
-    /* 减弱悬浮按钮阴影 */
-    box-shadow: 0 3px 8px rgba(79,70,229,0.2);
+    box-shadow: var(--shadow-fab);
     cursor: pointer;
     z-index: 900;
-    transition: all 0.25s ease;
+    transition: var(--trans-base);
     display: none;
     align-items: center;
     justify-content: center;
@@ -552,52 +660,62 @@
   }
   .fab-add-bookmark:hover {
     background: var(--primary-hover);
-    transform: translateY(-2px);
-    box-shadow: 0 4px 10px rgba(79,70,229,0.25);
+    transform: translateY(-5px) scale(1.04);
+    box-shadow: 0 10px 24px rgba(67, 97, 238, 0.42);
   }
   .fab-add-bookmark:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.97);
   }
-input,
-textarea,
-select {
-  font-size: 16px !important;
-  -webkit-text-size-adjust: 100%;
-}
-@supports (-webkit-touch-callout: none) {
-  .form-hint {
-    font-size: 14px;
+  /* 防止移动端自动放大输入框 */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100%;
   }
-}
+  @supports (-webkit-touch-callout: none) {
+    .form-hint {
+      font-size: 14px;
+    }
+  }
+  /* 移动端响应式重写 */
   @media (max-width: 768px) {
     .bookmark-grid { 
-      grid-template-columns: 1fr 1fr; 
-      gap: 0.6rem;
-      margin-bottom:20px;
+      grid-template-columns: 1fr; 
+      gap: 0.9rem;
+      margin-bottom:24px;
     }
     .bookmark-card {
-      padding: 0.7rem;
-      border-radius: 0.6rem;
+      padding: 1.1rem;
+      border-radius: var(--radius-md);
     }
     .card-title {
-      font-size: 0.7rem;
+      font-size: 0.95rem;
     }
     .card-desc {
-      font-size: 0.65rem;
+      font-size: 0.85rem;
       -webkit-line-clamp: 1;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.7rem;
     }
     .card-link {
-      font-size: 0.65rem;
+      font-size: 0.85rem;
     }
     .badge {
-      font-size: 0.5rem;
-      padding: 0.1rem 0.3rem;
+      font-size: 0.65rem;
+      padding: 0.12rem 0.4rem;
     }
-    /* 删掉这里的.form-row单列代码，手机保持并排 */
-    .top-bar { padding: 0.75rem 1rem; }
+    .form-row { grid-template-columns: 1fr; }
+    .top-bar { padding: 1rem 16px; gap:0.8rem; }
     .search-box { max-width: none; }
-    
+    .content-area { padding: 1.5rem 16px; }
+    .fab-add-bookmark {
+      width: 54px;
+      height: 54px;
+      right: 20px;
+      bottom: 20px;
+      font-size: 26px;
+    }
+    .section-title { font-size:1.4rem; }
   }
 </style>
 </head>
@@ -624,7 +742,6 @@ select {
         <span class="count" id="countPrivate">0</span>
       </a>
     </div>
-    <!-- 修改：分类标题同行圆形加号按钮 -->
     <div class="nav-section">
       <div class="nav-label-wrap">
         <span class="nav-label">分类（可拖动排序）</span>
@@ -632,7 +749,7 @@ select {
       </div>
       <div id="categoryList" class="category-list"></div>
     </div>
-    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,0.1);">
       <div class="nav-item" onclick="app.toggleAuth()">
         <span class="icon" id="authIcon">🔓</span>
         <span id="authStatus">未验证</span>
@@ -646,7 +763,6 @@ select {
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
       </div>
-      <!-- 已彻底删除顶部新建书签按钮 -->
       <div class="top-actions" id="topActions"></div>
     </div>
     <div class="content-area">
@@ -660,7 +776,6 @@ select {
     </div>
   </div>
 </div>
-<!-- 右下角创建书签悬浮按钮 -->
 <button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -688,7 +803,6 @@ select {
           <select class="form-select" id="formCategory"></select>
           <div class="form-hint">如需新增分类，请在侧边栏分类旁「+」</div>
         </div>
-        <!-- 修复：置顶、私有横向并排，手机不再换行 -->
         <div class="form-row">
           <div class="checkbox-group">
             <input type="checkbox" id="formPinned">
@@ -701,7 +815,6 @@ select {
         </div>
       </form>
     </div>
-    <!-- 底部取消保存按钮原本就存在，无缺失 -->
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="app.closeModal()">取消</button>
       <button class="btn btn-primary" onclick="app.saveBookmark()">保存</button>
@@ -765,7 +878,7 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
-    this.foldState = {};
+    this.foldState = {}; // key:分类名 true=收起(勾选) false=展开(未勾选)
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -885,14 +998,23 @@ class BookmarkApp {
     sortedGroups.forEach(group => {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
-      const isFold = this.foldState[name];
-      const foldIcon = isFold ? '+' : '−';
+      const isFold = this.foldState[name] || false;
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
           <span class="dot" style="background:${color}"></span>
           ${this.escapeHtml(name)}
+          <!-- 新三横线开关结构 -->
+          <div class="menu-toggle-wrap" onclick="app.toggleFold('${this.escapeHtml(name)}')">
+            <div id="menuToggle">
+              <input id="checkbox" type="checkbox" ${isFold ? 'checked' : ''}>
+              <label class="toggle" for="checkbox">
+                <div class="bar bar--top"></div>
+                <div class="bar bar--middle"></div>
+                <div class="bar bar--bottom"></div>
+              </label>
+            </div>
+          </div>
           <span class="count-text">(${list.length})</span>
-          <button class="toggle-fold" onclick="app.toggleFold('${this.escapeHtml(name)}')">${foldIcon}</button>
         </h2>
         <div class="bookmark-grid ${isFold ? 'hidden' : ''}">`;
       list.forEach(b => {
@@ -1039,12 +1161,13 @@ class BookmarkApp {
     }
     if(!confirm(`确定删除空分类「${name}」？`)) return;
     try {
-      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(name)}`, {
+      const res = await fetch(`${API_BASE}/${encodeURIComponent(name)}`, {
         method:'DELETE',
         headers: this.authHeaders()
       });
       if(res.status === 401) {
         this.showToast('身份失效，请重新验证', 'error');
+        this.toggleAuth();
         return;
       }
       if(!res.ok) throw new Error('删除失败');
@@ -1057,7 +1180,7 @@ class BookmarkApp {
     }
   }
   getCategoryColor(category) {
-    const colors = ['#4f46e5', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#14b8a6'];
+    const colors = ['#4361ee', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#f72585', '#14b8a6'];
     let hash = 0;
     for (let i = 0; i < category.length; i++) hash = category.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
@@ -1210,7 +1333,6 @@ class BookmarkApp {
     });
     this.showToast('已退出验证', 'info');
   }
-  // 修改：控制按钮显隐逻辑
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
     const status = document.getElementById('authStatus');
@@ -1259,7 +1381,7 @@ class BookmarkApp {
       if (path.length <= 20) return host + path;
       return host + path.slice(0, 20) + '...';
     } catch {
-      if (url.length > 30) return url.slice(0, 30) + '...';
+      if (url.length > 30) return url.slice(0, 30);
       return url;
     }
   }
