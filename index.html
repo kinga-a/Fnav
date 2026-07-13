@@ -22,6 +22,8 @@
     --text-muted: #64748b;
     --border: #e2e8f0;
     --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0.06);
+    /* 弹窗阴影弱化，替换轻量阴影 */
+    --shadow-modal: 0 2px 8px rgba(0,0,0,0.08);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
   }
   body {
@@ -390,7 +392,7 @@
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
   .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
 
-  /* 修改：弹窗苹果上下安全区留白 */
+  /* 修改：弹窗苹果上下安全区留白 + 弹窗阴影弱化 */
   .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
@@ -408,7 +410,7 @@
     width: 90%; max-width: 500px;
     max-height: 82vh;
     overflow-y: auto;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-modal); /* 替换轻量阴影 */
     transform: scale(0.95);
     transition: transform 0.3s;
     margin:12px 0;
@@ -451,6 +453,7 @@
   }
   .form-textarea { resize: vertical; min-height: 80px; }
   .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
+  /* 复选框行：横向并排 */
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .checkbox-group {
     display: flex; align-items: center; gap: 0.5rem;
@@ -465,6 +468,7 @@
   .modal-footer {
     padding: 1rem 1.5rem;
     display: flex; justify-content: flex-end; gap: 0.75rem;
+    border-top: 1px solid var(--border);
   }
   .auth-modal .modal { max-width: 400px; text-align: center; }
   .auth-modal .modal-body { padding: 2rem; }
@@ -502,7 +506,7 @@
     border: 1px solid var(--border);
     border-radius: 0.5rem;
     padding: 0.875rem 1.25rem;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-modal);
     display: flex; align-items: center; gap: 0.75rem;
     animation: slideIn 0.3s ease;
     min-width: 280px;
@@ -536,7 +540,8 @@
     border: none;
     font-size: 28px;
     line-height: 1;
-    box-shadow: 0 6px 16px rgba(79,70,0.35);
+    /* 减弱悬浮按钮阴影 */
+    box-shadow: 0 3px 8px rgba(79,70,229,0.2);
     cursor: pointer;
     z-index: 900;
     transition: all 0.25s ease;
@@ -547,8 +552,8 @@
   }
   .fab-add-bookmark:hover {
     background: var(--primary-hover);
-    transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(79,70,0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(79,70,229,0.25);
   }
   .fab-add-bookmark:active {
     transform: translateY(0);
@@ -683,6 +688,7 @@ select {
           <select class="form-select" id="formCategory"></select>
           <div class="form-hint">如需新增分类，请在侧边栏分类旁「+」</div>
         </div>
+        <!-- 修复：置顶、私有复选框横向并排同一行 -->
         <div class="form-row">
           <div class="checkbox-group">
             <input type="checkbox" id="formPinned">
@@ -695,6 +701,7 @@ select {
         </div>
       </form>
     </div>
+    <!-- 补全弹窗底部 取消/保存按钮栏（你截图缺失部分） -->
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="app.closeModal()">取消</button>
       <button class="btn btn-primary" onclick="app.saveBookmark()">保存</button>
