@@ -22,7 +22,7 @@
     --text-muted: #64748b;
     --border: #e2e8f0;
     --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -57,7 +57,7 @@
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
-    border-bottom: 1px solid rgba(255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
   }
   .sidebar-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
   .sidebar-close {
@@ -66,6 +66,7 @@
   }
   .sidebar-close:hover { color: #fff; }
   .nav-section { margin-bottom: 1.5rem; }
+  /* 新增：侧边分类标题行布局 + 圆形加号按钮样式 */
   .nav-label-wrap {
     display: flex;
     align-items: center;
@@ -77,7 +78,6 @@
     font-size: 0.75rem; text-transform: uppercase;
     letter-spacing: 0.05em; color: #94a3b8;
   }
-  /* 侧边新建分类圆形按钮 垂直居中修复 */
   .cat-add-btn {
     width: 20px;
     height: 20px;
@@ -86,7 +86,7 @@
     justify-content: center;
     background: rgba(255,255,255,0.08);
     border: none;
-    color: #94a3b;
+    color: #94a3b8;
     border-radius: 50%;
     cursor: pointer;
     font-size: 16px;
@@ -148,7 +148,7 @@
     font-size:14px; cursor:pointer; display:none;
   }
   .category-item:hover .cat-del-btn { display:block; }
-  .cat-del-btn:hover { background:rgba(239,68,0.2); color:#ef4444; }
+  .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
 
   .main-content {
     flex: 1;
@@ -191,7 +191,7 @@
   .search-box input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,0.1);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
   }
   .search-box .search-icon {
     position: absolute;
@@ -269,69 +269,26 @@
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
   }
-  /* 折叠动画图标容器 */
-  .cat-toggle-wrap {
+  .toggle-fold {
     margin-left: auto;
-    width: 25px;
-    height: 20px;
-    display: flex;
-    align-items: center;
-  }
-  .check-icon {
-    display: none;
-  }
-  /* 黑白三横线切换图标 无紫色 */
-  .icon-menu {
-    --gap: 5px;
-    --height-bar: 2.5px;
-    --pos-y-bar-one: 0;
-    --pos-y-bar-three: 0;
-    --scale-bar: 1;
-    --rotate-bar-one: 0;
-    --rotate-bar-three: 0;
-    width: 25px;
-    display: flex;
-    flex-direction: column;
-    gap: var(--gap);
+    background: rgba(0,0,0,0.04);
+    border: none;
+    font-size: 18px;
+    color: var(--text-muted);
     cursor: pointer;
-    position: relative;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
   }
-  .bar {
-    position: relative;
-    height: var(--height-bar);
-    width: 100%;
-    border-radius: .5rem;
-    background-color: #222;
+  .toggle-fold:hover {
+    background: rgba(79,70,229,0.1);
+    color: var(--primary);
+    transform: scale(1.08);
   }
-  .bar--1 {
-    top: var(--pos-y-bar-one);
-    transform: rotate(var(--rotate-bar-one));
-    transition: top 200ms 100ms, transform 100ms;
-  }
-  .bar--2 {
-    transform: scaleX(var(--scale-bar));
-    transition: transform 150ms 100ms;
-  }
-  .bar--3 {
-    bottom: var(--pos-y-bar-three);
-    transform: rotate(var(--rotate-bar-three));
-    transition: bottom 200ms 100ms, transform 100ms;
-  }
-  .check-icon:checked + .icon-menu > .bar--1 {
-    transition: top 200ms, transform 200ms 100ms;
-  }
-  .check-icon:checked + .icon-menu > .bar--3 {
-    transition: bottom 200ms, transform 200ms 100ms;
-  }
-  .check-icon:checked + .icon-menu {
-    --pos-y-bar-one: calc(var(--gap) + var(--height-bar));
-    --pos-y-bar-three: calc(var(--gap) + var(--height-bar));
-    --scale-bar: 0;
-    --rotate-bar-one: 45deg;
-    --rotate-bar-three: -45deg;
-  }
-  /* 旧加减按钮隐藏 */
-  .toggle-fold { display: none !important; }
 
   .bookmark-card {
     background: var(--card-bg);
@@ -433,6 +390,7 @@
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
   .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
 
+  /* 修改：弹窗苹果上下安全区留白 */
   .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
@@ -489,7 +447,7 @@
   .form-input:focus, .form-select:focus, .form-textarea:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,0.1);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
   }
   .form-textarea { resize: vertical; min-height: 80px; }
   .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
@@ -505,7 +463,7 @@
   }
   .checkbox-group label { cursor: pointer; font-size: 0.875rem; }
   .modal-footer {
-    padding: 1rem 1.5rem 1.5rem;
+    padding: 1rem 1.5rem;
     display: flex; justify-content: flex-end; gap: 0.75rem;
   }
   .auth-modal .modal { max-width: 400px; text-align: center; }
@@ -525,7 +483,7 @@
   .auth-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,0.1);
+    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
   }
   .auth-error {
     color: var(--danger);
@@ -562,7 +520,7 @@
     border: 2px solid var(--border);
     border-top-color: var(--primary);
     border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    animation: spin 0.8s linear;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -661,6 +619,7 @@ select {
         <span class="count" id="countPrivate">0</span>
       </a>
     </div>
+    <!-- 修改：分类标题同行圆形加号按钮 -->
     <div class="nav-section">
       <div class="nav-label-wrap">
         <span class="nav-label">分类（可拖动排序）</span>
@@ -668,7 +627,7 @@ select {
       </div>
       <div id="categoryList" class="category-list"></div>
     </div>
-    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,0.1);">
+    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
       <div class="nav-item" onclick="app.toggleAuth()">
         <span class="icon" id="authIcon">🔓</span>
         <span id="authStatus">未验证</span>
@@ -682,6 +641,7 @@ select {
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
       </div>
+      <!-- 已彻底删除顶部新建书签按钮 -->
       <div class="top-actions" id="topActions"></div>
     </div>
     <div class="content-area">
@@ -695,6 +655,7 @@ select {
     </div>
   </div>
 </div>
+<!-- 右下角创建书签悬浮按钮 -->
 <button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -918,19 +879,13 @@ class BookmarkApp {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
       const isFold = this.foldState[name];
+      const foldIcon = isFold ? '+' : '−';
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
           <span class="dot" style="background:${color}"></span>
           ${this.escapeHtml(name)}
           <span class="count-text">(${list.length})</span>
-          <div class="cat-toggle-wrap">
-            <input hidden class="check-icon" id="fold_${this.escapeHtml(name)}" type="checkbox" ${isFold ? 'checked' : ''}>
-            <label class="icon-menu" for="fold_${this.escapeHtml(name)}" onclick="app.toggleFold('${this.escapeHtml(name)}')">
-              <div class="bar bar--1"></div>
-              <div class="bar bar--2"></div>
-              <div class="bar bar--3"></div>
-            </label>
-          </div>
+          <button class="toggle-fold" onclick="app.toggleFold('${this.escapeHtml(name)}')">${foldIcon}</button>
         </h2>
         <div class="bookmark-grid ${isFold ? 'hidden' : ''}">`;
       list.forEach(b => {
@@ -1077,13 +1032,12 @@ class BookmarkApp {
     }
     if(!confirm(`确定删除空分类「${name}」？`)) return;
     try {
-      const res = await fetch(`${API_BASE}/${encodeURIComponent(name)}`, {
+      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(name)}`, {
         method:'DELETE',
         headers: this.authHeaders()
       });
       if(res.status === 401) {
         this.showToast('身份失效，请重新验证', 'error');
-        this.toggleAuth();
         return;
       }
       if(!res.ok) throw new Error('删除失败');
@@ -1249,6 +1203,7 @@ class BookmarkApp {
     });
     this.showToast('已退出验证', 'info');
   }
+  // 修改：控制按钮显隐逻辑
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
     const status = document.getElementById('authStatus');
