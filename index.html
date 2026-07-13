@@ -301,32 +301,26 @@
   .category-group-title:first-child {
     margin-top: 0;
   }
+  /* ===== 核心修改：dot 改为可点击的折叠按钮 ===== */
   .category-group-title .dot {
-    width:12px;height:12px;border-radius: 50%;
-    box-shadow: 0 0 0 2px rgba(0,0,0,0.05);
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    flex-shrink: 0;
+    /* 默认展开状态：无黑色边缘 */
+    box-shadow: none;
+  }
+  /* 折叠状态：添加黑色边缘 */
+  .category-group-title .dot.folded {
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
+  }
+  .category-group-title .dot:hover {
+    transform: scale(1.25);
   }
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
-  }
-  .toggle-fold {
-    margin-left: 5px;
-    background: var(--bg-subtle);
-    border: none;
-    font-size: 18px;
-    color: var(--text-muted);
-    cursor: pointer;
-    width: 26px;
-    height: 26px;
-    border-radius: var(--radius-sm);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s ease;
-  }
-  .toggle-fold:hover {
-    background: var(--primary-light);
-    color: var(--primary);
-    transform: scale(1.05);
   }
 
   .bookmark-card {
@@ -666,6 +660,7 @@ select {
     }
   }
 </style>
+<base target="_blank">
 </head>
 <body>
 <div id="app">
@@ -947,13 +942,13 @@ class BookmarkApp {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
       const isFold = this.foldState[name];
-      const foldIcon = isFold ? '+' : '−';
+      // ===== 核心修改：dot 添加 folded 类名控制黑色边缘，移除 toggle-fold 按钮 =====
+      const dotClass = isFold ? 'dot folded' : 'dot';
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
-          <span class="dot" style="background:${color}"></span>
+          <span class="${dotClass}" style="background:${color}" onclick="app.toggleFold('${this.escapeHtml(name)}')" title="${isFold ? '点击展开' : '点击折叠'}"></span>
           ${this.escapeHtml(name)}
           <span class="count-text">(${list.length})</span>
-          <button class="toggle-fold" onclick="app.toggleFold('${this.escapeHtml(name)}')">${foldIcon}</button>
         </h2>
         <div class="bookmark-grid ${isFold ? 'hidden' : ''}">`;
       list.forEach(b => {
