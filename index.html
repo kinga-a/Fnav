@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <link rel="icon" type="image/x-icon" href="https://pan.y11.fun/api/images/fnav_favicon.png">
 <link rel="apple-touch-icon" href="https://pan.y11.fun/api/images/fnav_favicon.png">
 <title>Fnav</title>
@@ -48,20 +48,22 @@
     --radius-xl: 18px;
     --radius-full: 9999px;
   }
+  html {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: linear-gradient(180deg, var(--bg) 0%, var(--bg-subtle) 100%);
     color: var(--text);
     min-height: 100vh;
     overflow-x: hidden;
+    overscroll-behavior-y: auto;
   }
-  /* ===== 弹窗打开时禁止 body 滚动 ===== */
-  body.modal-open {
-    overflow: hidden;
+  /* ===== 弹窗/侧边栏打开时锁定 body 滚动 ===== */
+  body.locked {
+    overflow: hidden !important;
     touch-action: none;
-    position: fixed;
-    width: 100%;
-    height: 100%;
   }
   .app-layout { display: flex; min-height: 100vh; }
   .sidebar {
@@ -75,6 +77,8 @@
     z-index: 1000;
     overflow-y: auto;
     padding: 1.5rem 1rem;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay {
@@ -83,6 +87,7 @@
     z-index: 999;
     opacity: 0; visibility: hidden;
     transition: all 0.3s ease;
+    touch-action: none;
   }
   .sidebar-overlay.open { opacity: 1; visibility: visible; }
   .sidebar-header {
@@ -840,6 +845,7 @@ class BookmarkApp {
     this.dragItem = null;
     this.foldState = {};
     this._bodyScrollTop = 0;
+    this._lockCount = 0;
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -856,6 +862,48 @@ class BookmarkApp {
       }
       if (e.ctrlKey && e.key === 'k') { e.preventDefault(); document.getElementById('searchInput').focus(); }
       if (e.ctrlKey && e.key === 'n') { e.preventDefault(); this.showAddModal(); }
+    });
+    // ===== iOS 侧边栏和弹窗触摸穿透防护 =====
+    this._setupTouchIsolation();
+  }
+  /* ===== 统一触摸隔离：阻止侧边栏/弹窗上的 touchmove 冒泡到 body ===== */
+  _setupTouchIsolation() {
+    const sidebar = document.getElementById('sidebar');
+    const overlays = document.querySelectorAll('.modal-overlay');
+    // 侧边栏滑动不穿透
+    sidebar.addEventListener('touchmove', (e) => {
+      e.stopPropagation();
+    }, { passive: false });
+    // 弹窗遮罩层滑动不穿透
+    overlays.forEach(overlay => {
+      overlay.addEventListener('touchmove', (e) => {
+        if (e.target === overlay) {
+          e.preventDefault();
+        }
+        e.stopPropagation();
+      }, { passive: false });
+    });
+    // 弹窗内容区域滑动不穿透到 body
+    document.querySelectorAll('.modal').forEach(modal => {
+      modal.addEventListener('touchmove', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+    });
+    // 弹窗 body 区域滑动不穿透（处理 iOS 橡皮筋效果）
+    document.querySelectorAll('.modal-body').forEach(body => {
+      body.addEventListener('touchmove', (e) => {
+        const scrollTop = body.scrollTop;
+        const scrollHeight = body.scrollHeight;
+        const clientHeight = body.clientHeight;
+        const isAtTop = scrollTop <= 0;
+        const isAtBottom = scrollTop + clientHeight >= scrollHeight;
+        const deltaY = e.touches[0].clientY - (this._lastTouchY || e.touches[0].clientY);
+        this._lastTouchY = e.touches[0].clientY;
+        if ((isAtTop && deltaY > 0) || (isAtBottom && deltaY < 0)) {
+          e.preventDefault();
+        }
+        e.stopPropagation();
+      }, { passive: false });
     });
   }
   async loadData() {
@@ -883,6 +931,11 @@ class BookmarkApp {
     this.sidebarOpen = !this.sidebarOpen;
     document.getElementById('sidebar').classList.toggle('open', this.sidebarOpen);
     document.getElementById('sidebarOverlay').classList.toggle('open', this.sidebarOpen);
+    if (this.sidebarOpen) {
+      this._lockBodyScroll();
+    } else {
+      this._unlockBodyScroll();
+    }
   }
   setView(view) {
     this.currentView = view;
@@ -1311,17 +1364,21 @@ class BookmarkApp {
       if(fabBtn) fabBtn.style.display = 'none';
     }
   }
-  /* ===== 锁定 body 滚动：记录当前滚动位置，固定 body ===== */
+  /* ===== 锁定 body 滚动：使用计数器支持嵌套弹窗 ===== */
   _lockBodyScroll() {
-    this._bodyScrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-    document.body.style.top = '-' + this._bodyScrollTop + 'px';
-    document.body.classList.add('modal-open');
+    if (this._lockCount === 0) {
+      this._bodyScrollTop = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+      document.body.classList.add('locked');
+    }
+    this._lockCount++;
   }
-  /* ===== 解锁 body 滚动：恢复滚动位置 ===== */
+  /* ===== 解锁 body 滚动：计数器归零时才真正解锁 ===== */
   _unlockBodyScroll() {
-    document.body.classList.remove('modal-open');
-    document.body.style.top = '';
-    window.scrollTo(0, this._bodyScrollTop);
+    this._lockCount = Math.max(0, this._lockCount - 1);
+    if (this._lockCount === 0) {
+      document.body.classList.remove('locked');
+      window.scrollTo(0, this._bodyScrollTop);
+    }
   }
   showToast(message, type = 'info') {
     const container = document.getElementById('toastContainer');
