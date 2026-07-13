@@ -436,27 +436,30 @@
     display: flex; align-items: center; justify-content: center;
     opacity: 0; visibility: hidden;
     transition: all 0.3s ease;
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    padding: max(16px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
     box-sizing: border-box;
   }
   .modal-overlay.open { opacity: 1; visibility: visible; }
+  /* 修复核心：弹窗改为垂直弹性布局，头部底部固定，中间滚动 */
   .modal {
     background: var(--card-bg);
     border-radius: var(--radius-xl);
     width: 90%; max-width: 500px;
-    max-height: 82vh;
-    overflow-y: auto;
+    max-height: min(82vh, calc(100vh - 60px));
     box-shadow: var(--shadow-modal);
     transform: scale(0.96);
     transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
-    margin:12px 0;
-    overflow:hidden;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
   .modal-overlay.open .modal { transform: scale(1); }
   .modal-header {
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid var(--border-subtle);
     display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
   }
   .modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text); }
   .modal-close {
@@ -468,7 +471,12 @@
     transition: all 0.2s;
   }
   .modal-close:hover { background: var(--bg-subtle); color: var(--text); }
-  .modal-body { padding: 1.5rem; }
+  /* 表单区域单独滚动 */
+  .modal-body {
+    padding: 1.5rem;
+    overflow-y: auto;
+    flex: 1;
+  }
   .form-group { margin-bottom: 1.25rem; }
   .form-label {
     display: block;
@@ -505,10 +513,12 @@
     cursor: pointer;
   }
   .checkbox-group label { cursor: pointer; font-size: 0.875rem; }
+  /* 底部按钮固定不滚动 */
   .modal-footer {
     padding: 1rem 1.5rem;
     display: flex; justify-content: flex-end; gap: 0.75rem;
     border-top: 1px solid var(--border-subtle);
+    flex-shrink: 0;
   }
   .auth-modal .modal { max-width: 400px; text-align: center; }
   .auth-modal .modal-body { padding: 2rem; }
@@ -540,7 +550,8 @@
   }
   .toast-container {
     position: fixed;
-    bottom: 1.5rem; right: 1.5rem;
+    bottom: max(1.5rem, env(safe-area-inset-bottom) + 16px);
+    right: 1.5rem;
     z-index: 3000;
     display: flex; flex-direction: column; gap: 0.5rem;
   }
@@ -574,7 +585,7 @@
   .fab-add-bookmark {
     position: fixed;
     right: 24px;
-    bottom: 24px;
+    bottom: max(24px, env(safe-area-inset-bottom) + 8px);
     width: 56px;
     height: 56px;
     border-radius: 50%;
@@ -640,6 +651,19 @@ select {
     .search-box { max-width: none; }
     .content-area { padding: 1.2rem 16px; }
     .section-title { font-size: 1.25rem; }
+    /* 移动端弹窗加宽底部安全区 */
+    .modal-overlay {
+      padding: max(12px, env(safe-area-inset-top)) 12px max(40px, env(safe-area-inset-bottom));
+    }
+    .modal-footer {
+      padding: 0.8rem 1rem;
+    }
+    .modal-header {
+      padding: 1rem 1rem;
+    }
+    .modal-body {
+      padding: 1rem;
+    }
   }
 </style>
 </head>
@@ -1303,4 +1327,4 @@ class BookmarkApp {
 const app = new BookmarkApp();
 </script>
 </body>
-</html>  
+</html>
