@@ -178,36 +178,36 @@ if (path.startsWith('/api/categories/') && method === 'DELETE') {
     if (method === 'PUT') {
       // 编辑鉴权
       if (!(await authCheck())) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
-}
-var e = await kv.get('bookmark:' + id, 'json');
-if (!e) {
-    return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
-}
-var u = {
-    id: e.id,
-    title: body.title !== undefined ? body.title.trim() : e.title,
-    url: body.url !== undefined ? body.url.trim() : e.url,
-    description: body.description !== undefined ? body.description.trim() : e.description,
-    category: body.category || e.category,
-    pinned: body.pinned !== undefined ? !!body.pinned : e.pinned,
-    isPrivate: body.isPrivate !== undefined ? !!body.isPrivate : e.isPrivate,
-    createdAt: e.createdAt,
-    updatedAt: new Date().toISOString()
-};
-await kv.put('bookmark:' + id, JSON.stringify(u));
-return new Response(JSON.stringify({ bookmark: u }), { headers: { 'Content-Type': 'application/json' } });
-}
-if (method === 'DELETE') {
-    // 删除鉴权
-    if (!(await authCheck())) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
+      var e = await kv.get('bookmark:' + id, 'json');
+      if (!e) {
+        return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+      }
+      var u = {
+        id: e.id,
+        title: body.title !== undefined ? body.title.trim() : e.title,
+        url: body.url !== undefined ? body.url.trim() : e.url,
+        description: body.description !== undefined ? body.description.trim() : e.description,
+        category: body.category || e.category,
+        pinned: body.pinned !== undefined ? !!body.pinned : e.pinned,
+        isPrivate: body.isPrivate !== undefined ? !!body.isPrivate : e.isPrivate,
+        createdAt: e.createdAt,
+        updatedAt: new Date().toISOString()
+      };
+      await kv.put('bookmark:' + id, JSON.stringify(u));
+      return new Response(JSON.stringify({ bookmark: u }), { headers: { 'Content-Type': 'application/json' } });
     }
-    await kv.delete('bookmark:' + id);
-    return new Response(null, { status: 204 });
-}
-return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
-}
-
-return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+    if (method === 'DELETE') {
+      // 删除鉴权
+      if (!(await authCheck())) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+      }
+      await kv.delete('bookmark:' + id);
+      return new Response(null, { status: 204 });
+    }
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { 'Content-Type': 'application/json' } });
   }
+
+  return new Response(JSON.stringify({ error: 'Not found' }), { status: 404, headers: { 'Content-Type': 'application/json' } });
+}
