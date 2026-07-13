@@ -21,7 +21,7 @@
     --text: #1e293b;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
   }
   body {
@@ -128,13 +128,13 @@
     color: #94a3b8;
     font-size: 0.875rem;
     cursor: pointer;
-    border: 1px dashed rgba(255,255,255,0.2);
+    border: 1px dashed rgba(255,255,0.2);
     border-radius: 0.5rem;
     margin-top: 0.5rem;
     transition: all 0.2s;
   }
   .add-category-btn:hover {
-    border-color: rgba(255,255,255,0.4);
+    border-color: rgba(255,255,0.4);
     color: #fff;
   }
   .main-content {
@@ -190,9 +190,6 @@
   .top-actions {
     display: flex; gap: 0.5rem;
   }
-  #addBookmarkBtn {
-    display: none !important;
-  }
   .btn {
     display: inline-flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 1rem;
@@ -226,68 +223,35 @@
   .section-title { font-size: 1.5rem; font-weight: 700; }
   .section-desc { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
 
-  /* ===== 分类分组样式 ===== */
-  .category-group {
-    margin-bottom: 2rem;
+  /* 外层容器流式布局，修复空白 */
+  #bookmarkGrid {
+    display: block;
   }
-  .category-group-header {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 0.75rem;
-    margin-bottom: 1rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    user-select: none;
-    position: sticky;
-    top: 73px;
-    z-index: 50;
-  }
-  .category-group-header:hover {
-    border-color: var(--primary);
-    box-shadow: 0 2px 8px rgba(79,70,229,0.08);
-  }
-  .category-group-header .cat-dot {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .category-group-header .cat-name {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--text);
-    flex: 1;
-  }
-  .category-group-header .cat-badge {
-    background: var(--bg);
-    color: var(--text-muted);
-    padding: 0.2rem 0.6rem;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 500;
-  }
-  .category-group-header .cat-toggle {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-    transition: transform 0.3s;
-    width: 20px;
-    text-align: center;
-  }
-  .category-group.collapsed .cat-toggle {
-    transform: rotate(-90deg);
-  }
-  .category-group.collapsed .bookmark-grid {
-    display: none !important;
-  }
+  /* 单分类卡片网格 */
   .bookmark-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1rem;
+    margin-bottom: 32px;
   }
-  /* ===== 分类分组样式结束 ===== */
+  /* 分类标题样式 */
+  .category-group-title {
+    margin: 32px 0 12px;
+    font-size: 18px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .category-group-title:first-child {
+    margin-top: 0;
+  }
+  .category-group-title .dot {
+    width:12px;height:12px;border-radius:50%;
+  }
+  .category-group-title .count-text {
+    font-size:13px;color:var(--text-muted);font-weight:normal;
+  }
 
   .bookmark-card {
     background: var(--card-bg);
@@ -384,46 +348,36 @@
     text-align: center;
     padding: 4rem 2rem;
     color: var(--text-muted);
+    width:100%;
   }
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
   .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
+
+  /* 弹窗修复：苹果手机上下留白、安全区适配 */
   .modal-overlay {
-    position: fixed; 
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
     z-index: 2000;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    opacity: 0; 
-    visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden;
     transition: all 0.3s;
-    /* iOS修复：给遮罩增加全局安全边距 */
+    /* iOS安全区留白 */
     padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     box-sizing: border-box;
-}
-.modal-overlay.open { 
-    opacity: 1; 
-    visibility: visible; 
-}
-.modal {
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+  .modal {
     background: var(--card-bg);
     border-radius: 1rem;
-    width: 90%; 
-    max-width: 500px;
-    /* iOS修复：降低最大高度，强制上下留白 */
+    width: 90%; max-width: 500px;
     max-height: 82vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     transform: scale(0.95);
     transition: transform 0.3s;
-    /* 关键：弹窗自身上下内边距兜底 */
-    margin: 12px 0;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    /* 追加 */
-    overflow: hidden;
-}
+    margin:12px 0;
+    overflow:hidden;
+  }
   .modal-overlay.open .modal { transform: scale(1); }
   .modal-header {
     padding: 1.25rem 1.5rem;
@@ -524,46 +478,6 @@
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
   }
-
-  /* 手机端适配 */
-  @media (max-width: 768px) {
-    .bookmark-grid { 
-      grid-template-columns: 1fr 1fr; 
-      gap: 0.6rem;
-    }
-    .bookmark-card {
-      padding: 0.7rem;
-      border-radius: 0.6rem;
-    }
-    .card-title {
-      font-size: 0.7rem;
-    }
-    .card-desc {
-      font-size: 0.65rem;
-      -webkit-line-clamp: 1;
-      margin-bottom: 0.5rem;
-    }
-    .card-link {
-      font-size: 0.65rem;
-    }
-    .badge {
-      font-size: 0.5rem;
-      padding: 0.1rem 0.3rem;
-    }
-    .form-row { grid-template-columns: 1fr; }
-    .top-bar { padding: 0.75rem 1rem; }
-    .search-box { max-width: none; }
-    .category-group-header {
-      padding: 0.5rem 0.75rem;
-      top: 61px;
-    }
-    .category-group-header .cat-name {
-      font-size: 0.875rem;
-    }
-    .category-group {
-      margin-bottom: 1rem;
-    }
-  }
   .loading-spinner {
     display: inline-block;
     width: 1.5rem; height: 1.5rem;
@@ -574,6 +488,7 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* 右下角悬浮新增按钮（登录才显示，未登录隐藏） */
   .fab-add-bookmark {
     position: fixed;
     right: 24px;
@@ -590,7 +505,7 @@
     cursor: pointer;
     z-index: 900;
     transition: all 0.25s ease;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     padding: 0;
@@ -614,8 +529,38 @@ select {
     font-size: 14px;
   }
 }
+  /* 手机端适配 */
+  @media (max-width: 768px) {
+    .bookmark-grid { 
+      grid-template-columns: 1fr 1fr; 
+      gap: 0.6rem;
+      margin-bottom:20px;
+    }
+    .bookmark-card {
+      padding: 0.7rem;
+      border-radius: 0.6rem;
+    }
+    .card-title {
+      font-size: 0.7rem;
+    }
+    .card-desc {
+      font-size: 0.65rem;
+      -webkit-line-clamp: 1;
+      margin-bottom: 0.5rem;
+    }
+    .card-link {
+      font-size: 0.65rem;
+    }
+    .badge {
+      font-size: 0.5rem;
+      padding: 0.1rem 0.3rem;
+    }
+    .form-row { grid-template-columns: 1fr; }
+    .top-bar { padding: 0.75rem 1rem; }
+    .search-box { max-width: none; }
+    
+  }
 </style>
-<base target="_blank">
 </head>
 <body>
 <div id="app">
@@ -661,11 +606,8 @@ select {
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
       </div>
-      <div class="top-actions" id="topActions">
-        <button class="btn btn-primary" id="addBookmarkBtn" onclick="app.showAddModal()">
-          <span>+</span> 新建书签
-        </button>
-      </div>
+      <!-- 已彻底删除顶部#addBookmarkBtn按钮（方案A） -->
+      <div class="top-actions" id="topActions"></div>
     </div>
     <div class="content-area">
       <div class="section-header">
@@ -678,6 +620,7 @@ select {
     </div>
   </div>
 </div>
+<!-- 仅保留右下角悬浮新增按钮 -->
 <button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -780,8 +723,6 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
-    // 分类折叠状态，持久化到 localStorage
-    this.collapsedCategories = JSON.parse(localStorage.getItem('fnav_collapsed') || '{}');
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -831,7 +772,7 @@ class BookmarkApp {
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.category-item').forEach(el => el.classList.remove('active'));
     const viewMap = {
-      'all': { title: '全部书签', desc: '按分类分组浏览所有书签' },
+      'all': { title: '全部书签', desc: '浏览所有书签' },
       'pinned': { title: '置顶书签', desc: '查看置顶的书签' },
       'private': { title: '私有书签', desc: '查看私有书签' }
     };
@@ -868,74 +809,49 @@ class BookmarkApp {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }
-
-  // ===== 分类分组渲染 =====
+  // 修复版分组渲染 解决空白
   renderBookmarks() {
-    const grid = document.getElementById('bookmarkGrid');
+    const wrap = document.getElementById('bookmarkGrid');
+    wrap.innerHTML = '';
     const filtered = this.getFilteredBookmarks();
     document.getElementById('countAll').textContent = this.bookmarks.length;
     document.getElementById('countPinned').textContent = this.bookmarks.filter(b => b.pinned).length;
     document.getElementById('countPrivate').textContent = this.bookmarks.filter(b => b.isPrivate).length;
-
-    if (filtered.length === 0) {
-      grid.innerHTML = `<div class="empty-state" style="grid-column: 1/-1;"><div class="icon">📭</div><h3>暂无书签</h3><p>点击右下角圆形加号添加第一个书签</p></div>`;
+    const groupMap = {};
+    filtered.forEach(item => {
+      const catName = item.category || '未分类';
+      if (!groupMap[catName]) groupMap[catName] = [];
+      groupMap[catName].push(item);
+    });
+    const sortedGroups = [];
+    this.categories.forEach(cat => {
+      if (groupMap[cat]) sortedGroups.push({ name: cat, list: groupMap[cat] });
+      delete groupMap[cat];
+    });
+    Object.keys(groupMap).forEach(cat => {
+      sortedGroups.push({ name: cat, list: groupMap[cat] });
+    });
+    if (sortedGroups.length === 0) {
+      wrap.innerHTML = `<div class="empty-state"><div class="icon">📭</div><h3>暂无书签</h3><p>登录后点击右下角加号添加第一个书签</p></div>`;
       return;
     }
-
-    // 按分类分组
-    const grouped = {};
-    filtered.forEach(b => {
-      const cat = b.category || '未分类';
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(b);
+    let html = '';
+    sortedGroups.forEach(group => {
+      const { name, list } = group;
+      const color = this.getCategoryColor(name);
+      html += `<h2 class="category-group-title">
+        <span class="dot" style="background:${color}"></span>
+        ${this.escapeHtml(name)}
+        <span class="count-text">(${list.length})</span>
+      </h2>`;
+      html += `<div class="bookmark-grid">`;
+      list.forEach(b => {
+        html += this.createBookmarkCard(b);
+      });
+      html += `</div>`;
     });
-
-    // 按分类排序顺序渲染（未分类放最后）
-    const sortedCats = Object.keys(grouped).sort((a, b) => {
-      if (a === '未分类') return 1;
-      if (b === '未分类') return -1;
-      const idxA = this.categories.indexOf(a);
-      const idxB = this.categories.indexOf(b);
-      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-      if (idxA !== -1) return -1;
-      if (idxB !== -1) return 1;
-      return a.localeCompare(b);
-    });
-
-    grid.innerHTML = sortedCats.map(cat => {
-      const color = this.getCategoryColor(cat);
-      const items = grouped[cat];
-      const isCollapsed = !!this.collapsedCategories[cat];
-      const cardsHtml = items.map(b => this.createBookmarkCard(b)).join('');
-      return `
-        <div class="category-group ${isCollapsed ? 'collapsed' : ''}" data-cat="${this.escapeHtml(cat)}">
-          <div class="category-group-header" onclick="app.toggleCategoryCollapse('${this.escapeHtml(cat)}')">
-            <span class="cat-dot" style="background:${color}"></span>
-            <span class="cat-name">${this.escapeHtml(cat)}</span>
-            <span class="cat-badge">${items.length} 个书签</span>
-            <span class="cat-toggle">▼</span>
-          </div>
-          <div class="bookmark-grid">${cardsHtml}</div>
-        </div>
-      `;
-    }).join('');
+    wrap.innerHTML = html;
   }
-
-  toggleCategoryCollapse(cat) {
-    if (this.collapsedCategories[cat]) {
-      delete this.collapsedCategories[cat];
-    } else {
-      this.collapsedCategories[cat] = true;
-    }
-    localStorage.setItem('fnav_collapsed', JSON.stringify(this.collapsedCategories));
-    // 只更新对应组的 class，不重绘全部
-    const group = document.querySelector(`.category-group[data-cat="${CSS.escape(cat)}"]`);
-    if (group) {
-      group.classList.toggle('collapsed', !!this.collapsedCategories[cat]);
-    }
-  }
-  // ===== 分类分组渲染结束 =====
-
   createBookmarkCard(b) {
     const isLocked = b.isPrivate && !this.isAuthenticated;
     const categoryColor = this.getCategoryColor(b.category);
@@ -1068,22 +984,22 @@ class BookmarkApp {
     }
     const hasBookmark = this.bookmarks.some(b=>b.category === name);
     if(hasBookmark) {
-      this.showToast(`分类「${name}」下存在书签，请先清空书签再删除`, 'error');
+      this.showToast(`分类「${name}」下存在书签，请先清空书签`, 'error');
       return;
     }
-    if(!confirm(`确定要删除空分类「${name}」吗？`)) return;
+    if(!confirm(`确定删除空分类「${name}」？`)) return;
     try {
       const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(name)}`, {
         method:'DELETE',
         headers: this.authHeaders()
       });
       if(res.status === 401) {
-        this.showToast('身份验证失效', 'error');
+        this.showToast('身份失效，请重新验证', 'error');
         this.toggleAuth();
         return;
       }
-      if(!res.ok) throw new Error('删除分类失败');
-      this.showToast(`分类「${name}」已删除`, 'success');
+      if(!res.ok) throw new Error('删除失败');
+      this.showToast('分类已删除', 'success');
       await this.loadData();
       this.renderCategories();
       this.renderBookmarks();
@@ -1097,7 +1013,13 @@ class BookmarkApp {
     for (let i = 0; i < category.length; i++) hash = category.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
   }
+  // 打开弹窗前鉴权，未登录弹窗打不开
   showAddModal() {
+    if(!this.isAuthenticated){
+      this.showToast('请先验证身份后添加书签','error');
+      this.toggleAuth();
+      return;
+    }
     document.getElementById('bookmarkForm').reset();
     document.getElementById('bookmarkId').value = '';
     document.getElementById('modalTitle').textContent = '新建书签';
@@ -1123,7 +1045,7 @@ class BookmarkApp {
   closeDeleteModalByOverlay(e) { if(e.target.id === 'deleteModal') this.closeDeleteModal(); }
   closeModal() { document.getElementById('bookmarkModal').classList.remove('open'); }
   async saveBookmark() {
-    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+    if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); this.toggleAuth(); return; }
     const id = document.getElementById('bookmarkId').value;
     const title = document.getElementById('formTitle').value.trim();
     const url = document.getElementById('formUrl').value.trim();
@@ -1139,9 +1061,9 @@ class BookmarkApp {
         headers: this.authHeaders(),
         body: JSON.stringify(data)
       });
-      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+      if (res.status === 401) { this.showToast('身份失效', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error('保存失败');
-      this.showToast(id ? '书签已更新' : '书签已创建', 'success');
+      this.showToast(id ? '更新成功' : '创建成功', 'success');
       this.closeModal();
       await this.loadData();
       this.renderCategories();
@@ -1151,11 +1073,11 @@ class BookmarkApp {
   deleteBookmark(id) { this.deleteTarget = id; document.getElementById('deleteModal').classList.add('open'); }
   closeDeleteModal() { document.getElementById('deleteModal').classList.remove('open'); this.deleteTarget = null; }
   async confirmDelete() {
-    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+    if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); this.toggleAuth(); return; }
     if (!this.deleteTarget) return;
     try {
       const res = await fetch(API_BASE + '/bookmarks/' + this.deleteTarget, { method: 'DELETE', headers: this.authHeaders() });
-      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+      if (res.status === 401) { this.showToast('身份失效', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error('删除失败');
       this.showToast('书签已删除', 'success');
       this.closeDeleteModal();
@@ -1165,13 +1087,18 @@ class BookmarkApp {
     } catch (e) { this.showToast(e.message, 'error'); }
   }
   showAddCategory() {
+    if(!this.isAuthenticated){
+      this.showToast('请先验证身份', 'error');
+      this.toggleAuth();
+      return;
+    }
     document.getElementById('newCategoryName').value = '';
     document.getElementById('categoryModal').classList.add('open');
     document.getElementById('newCategoryName').focus();
   }
   closeCategoryModal() { document.getElementById('categoryModal').classList.remove('open'); }
   async addCategory() {
-    if (!this.isAuthenticated) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+    if (!this.isAuthenticated) { this.showToast('请先验证', 'error'); this.toggleAuth(); return; }
     const name = document.getElementById('newCategoryName').value.trim();
     if (!name) return;
     if (this.categories.includes(name)) { this.showToast('分类已存在', 'error'); return; }
@@ -1182,9 +1109,9 @@ class BookmarkApp {
         body: JSON.stringify({ name })
       });
       const json = await res.json();
-      if (res.status === 401) { this.showToast('请先登录验证', 'error'); this.toggleAuth(); return; }
+      if (res.status === 401) { this.showToast('身份失效', 'error'); this.toggleAuth(); return; }
       if (!res.ok) throw new Error(json.error || '创建失败');
-      this.showToast('分类已创建', 'success');
+      this.showToast('分类创建成功', 'success');
       this.closeCategoryModal();
       await this.loadData();
       this.renderCategories();
@@ -1222,7 +1149,7 @@ class BookmarkApp {
         document.getElementById('authError').textContent = '密码错误';
       }
     } catch (e) {
-      document.getElementById('authError').textContent = '验证失败';
+      document.getElementById('authError').textContent = '验证请求失败';
     }
   }
   logout() {
@@ -1233,26 +1160,29 @@ class BookmarkApp {
         this.renderCategories();
         this.renderBookmarks();
     });
-    this.showToast('已退出登录', 'info');
+    this.showToast('已退出验证', 'info');
   }
+  // 关键：控制右下角悬浮按钮登录显示、未登录隐藏
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
     const status = document.getElementById('authStatus');
-    const addBtn = document.getElementById('addBookmarkBtn');
     const addCatBtn = document.getElementById('addCategoryBtn');
     const navPrivate = document.getElementById('navPrivate');
+    const fabBtn = document.getElementById('fabAddBtn');
     if (this.isAuthenticated) {
       icon.textContent = '🔓';
       status.textContent = '已验证';
-      if (addBtn) addBtn.style.display = 'inline-flex';
       if (addCatBtn) addCatBtn.style.display = 'flex';
       navPrivate.style.display = 'flex';
+      // 登录显示悬浮加号
+      if(fabBtn) fabBtn.style.display = 'flex';
     } else {
       icon.textContent = '🔒';
       status.textContent = '未验证';
-      if (addBtn) addBtn.style.display = 'none';
       if (addCatBtn) addCatBtn.style.display = 'none';
       navPrivate.style.display = 'none';
+      // 未验证隐藏右下角新增按钮
+      if(fabBtn) fabBtn.style.display = 'none';
     }
   }
   showToast(message, type = 'info') {
@@ -1279,7 +1209,7 @@ class BookmarkApp {
     try {
       const u = new URL(url);
       const host = u.hostname;
-      const path = u.pathname;
+      const path = u.path;
       if (path.length <= 20) return host + path;
       return host + path.slice(0, 20) + '...';
     } catch {
