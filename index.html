@@ -21,8 +21,8 @@
     --text: #1e293b;
     --text-muted: #64748b;
     --border: #e2e8f0;
-    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0.06);
-    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0.05);
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0.06);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0.1), 0 4px 6px -2px rgba(0,0.05);
   }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -77,7 +77,7 @@
     font-size: 0.75rem; text-transform: uppercase;
     letter-spacing: 0.05em; color: #94a3b8;
   }
-  /* 侧边栏新建分类圆形按钮 垂直居中对齐 */
+  /* 侧边新建分类圆形按钮 */
   .cat-add-btn {
     width: 26px;
     height: 26px;
@@ -115,7 +115,7 @@
   .nav-item .icon { width: 20px; text-align: center; }
   .nav-item .count {
     margin-left: auto;
-    background: rgba(255,255,255,0.15);
+    background: rgba(255,255,0.15);
     padding: 0.125rem 0.5rem;
     border-radius: 9999px;
     font-size: 0.75rem;
@@ -134,7 +134,7 @@
   .category-item:active { cursor: grabbing; }
   .category-item:hover, .category-item.active {
     color: #fff;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,0.08);
   }
   .category-item .cat-color {
     width: 8px; height: 8px; border-radius: 50%;
@@ -148,7 +148,7 @@
     font-size:14px; cursor:pointer; display:none;
   }
   .category-item:hover .cat-del-btn { display:block; }
-  .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
+  .cat-del-btn:hover { background:rgba(239,68,0.2); color:#ef4444; }
 
   .main-content {
     flex: 1;
@@ -191,7 +191,7 @@
   .search-box input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    box-shadow: 0 0 0 3px rgba(79,70,0.1);
   }
   .search-box .search-icon {
     position: absolute;
@@ -268,83 +268,69 @@
   }
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
+    margin-left: auto 8px;
   }
 
-  /* 滑动开关统一主题色：选中改为主紫色，全站风格统一 */
-.toggle-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  border-radius: .5em;
-  padding: .125em;
-  background-image: linear-gradient(to bottom, #d5d5d5, #e8e8e8);
-  box-shadow: 0 1px 1px rgb(255 255 255 / .6);
-  font-size: 0.9em;
-  flex-shrink: 0;
-  cursor: pointer;
-}
-
-.toggle-checkbox {
-  appearance: none;
-  position: absolute;
-  z-index: 1;
-  border-radius: inherit;
-  width: 100%;
-  height: 100%;
-  font: inherit;
-  opacity: 0;
-  cursor: pointer;
-}
-
-.toggle-container {
-  display: flex;
-  align-items: center;
-  position: relative;
-  border-radius: .375em;
-  width: 3em;
-  height: 1.5em;
-  background-color: #e8e8e8;
-  box-shadow: inset 0 0 .0625em .125em rgb(255 255 255 / .2), inset 0 .0625em .125em rgb(0 0 0 / .4);
-  transition: background-color .4s linear;
-}
-/* 替换原黄色，使用网站主紫色统一风格 */
-.toggle-checkbox:checked + .toggle-container {
-  background-color: var(--primary);
-}
-
-.toggle-button {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: absolute;
-  left: .0625em;
-  border-radius: .3125em;
-  width: 1.375em;
-  height: 1.375em;
-  background-color: #e8e8e8;
-  box-shadow: inset 0 -.0625em .0625em .125em rgb(0 0 0 / .1), inset 0 -.125em .0625em rgb(0 0 0 / .2), inset 0 .1875em .0625em rgb(255 255 255 / .3), 0 .125em .125em rgb(0 0 0 / .5);
-  transition: left .4s;
-}
-
-.toggle-checkbox:checked + .toggle-container > .toggle-button {
-  left: 1.5625em;
-}
-
-.toggle-button-circles-container {
-  display: grid;
-  grid-template-columns: repeat(3, min-content);
-  gap: .125em;
-  position: absolute;
-  margin: 0 auto;
-}
-
-.toggle-button-circle {
-  border-radius: 50%;
-  width: .125em;
-  height: .125em;
-  background-image: radial-gradient(circle at 50% 0, #f5f5f5, #c4c4c4);
-}
+  /* ========== 新三横线折叠开关 CSS 替换旧滑动开关 ========== */
+  .menu-toggle-wrap {
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+  #checkbox {
+    display: none;
+  }
+  .toggle {
+    position: relative;
+    width: 32px; /* 缩小尺寸适配标题 */
+    cursor: pointer;
+    margin: auto;
+    display: block;
+    height: calc(4px * 3 + 9px * 2);
+  }
+  .bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: calc(4px / 2);
+    background: var(--primary); /* 统一网站主紫色 */
+    color: inherit;
+    opacity: 1;
+    transition: none 0.35s cubic-bezier(.5,-0.35,.35,1.5) 0s;
+  }
+  .bar--top {
+    bottom: calc(50% + 9px + 4px/ 2);
+    transition-property: bottom,margin,transform;
+    transition-delay: calc(0s + 0.35s),0s,0s;
+  }
+  .bar--middle {
+    top: calc(50% - 4px/ 2);
+    transition-property: top,opacity;
+    transition-duration: 0.35s,0s;
+    transition-delay: calc(0s + 0.35s * 1.3),calc(0s + 0.35s * 1.3);
+  }
+  .bar--bottom {
+    top: calc(50% + 9px + 4px/ 2);
+    transition-property: top,transform;
+    transition-delay: 0s;
+  }
+  #checkbox:checked + .toggle .bar--top {
+    bottom: calc(50% - 9px - 4px);
+    margin-bottom: calc(9px + 4px/ 2);
+    transform: rotate(45deg);
+    transition-delay: calc(0s + 0.35s * .3),calc(0s + 0.35s * 1.3),calc(0s + 0.35s * 1.3);
+  }
+  #checkbox:checked + .toggle .bar--middle {
+    top: calc(50% + 9px);
+    opacity: 0;
+    transition-duration: 0.35s,0s;
+    transition-delay: 0s,calc(0s + 0.35s);
+  }
+  #checkbox:checked + .toggle .bar--bottom {
+    top: calc(50% - 4px/ 2);
+    transform: rotate(-45deg);
+    transition-delay: calc(0s + 0.35s * 1.3),calc(0s + 0.35s * 1.3);
+  }
 
   .bookmark-card {
     background: var(--card-bg);
@@ -357,7 +343,7 @@
     cursor: pointer;
   }
   .bookmark-card:hover {
-    box-shadow: 0 12px 24px -6px rgba(0,0,0,0.08);
+    box-shadow: 0 12px 24px -6px rgba(0,0,0.08);
     transform: translateY(-3px);
   }
   .bookmark-card.pinned {
@@ -502,7 +488,7 @@
   .form-input:focus, .form-select:focus, .form-textarea:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    box-shadow: 0 0 0 3px rgba(79,70,0.1);
   }
   .form-textarea { resize: vertical; min-height: 80px; }
   .form-hint { font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.25rem; }
@@ -538,7 +524,7 @@
   .auth-input:focus {
     outline: none;
     border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+    box-shadow: 0 0 0 3px rgba(79,70,0.1);
   }
   .auth-error {
     color: var(--danger);
@@ -564,7 +550,7 @@
   }
   .toast.success { border-left: 4px solid var(--success); }
   .toast.error { border-left: 4px solid var(--danger); }
-  .toast.info { border-left: 4px solid var(--primary); }
+  .toast.info { border-left: var(--primary); }
   @keyframes slideIn {
     from { transform: translateX(100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
@@ -591,7 +577,7 @@
     border: none;
     font-size: 28px;
     line-height: 1;
-    box-shadow: 0 6px 16px rgba(79,70,229,0.35);
+    box-shadow: 0 6px 16px rgba(79,70,0.35);
     cursor: pointer;
     z-index: 900;
     transition: all 0.25s ease;
@@ -603,7 +589,7 @@
   .fab-add-bookmark:hover {
     background: var(--primary-hover);
     transform: translateY(-4px);
-    box-shadow: 0 8px 20px rgba(79,70,229,0.4);
+    box-shadow: 0 8px 20px rgba(79,70,0.4);
   }
   .fab-add-bookmark:active {
     transform: translateY(0);
@@ -681,7 +667,7 @@ select {
       </div>
       <div id="categoryList" class="category-list"></div>
     </div>
-    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
+    <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,0.1);">
       <div class="nav-item" onclick="app.toggleAuth()">
         <span class="icon" id="authIcon">🔓</span>
         <span id="authStatus">未验证</span>
@@ -728,7 +714,7 @@ select {
         </div>
         <div class="form-group">
           <label class="form-label">描述</label>
-          <textarea class="form-textarea" id="formDesc" placeholder="可选：添加描述..."></textarea>
+          <textarea class="form-text" id="formDesc" placeholder="可选：添加描述..."></textarea>
         </div>
         <div class="form-group">
           <label class="form-label">分类</label>
@@ -810,7 +796,7 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
-    this.foldState = {};
+    this.foldState = {}; // key:分类名 true=收起(勾选) false=展开(未勾选)
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -930,31 +916,20 @@ class BookmarkApp {
     sortedGroups.forEach(group => {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
-      const isFold = this.foldState[name];
+      const isFold = this.foldState[name] || false;
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
           <span class="dot" style="background:${color}"></span>
           ${this.escapeHtml(name)}
-          <!-- 统一主题色滑动开关 -->
-          <div class="toggle-wrapper" onclick="app.toggleFold('${this.escapeHtml(name)}')">
-            <input class="toggle-checkbox" type="checkbox" ${isFold ? 'checked' : ''}>
-            <div class="toggle-container">
-              <div class="toggle-button">
-                <div class="toggle-button-circles-container">
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                  <div class="toggle-button-circle"></div>
-                </div>
-              </div>
+          <!-- 新三横线开关结构 -->
+          <div class="menu-toggle-wrap" onclick="app.toggleFold('${this.escapeHtml(name)}')">
+            <div id="menuToggle">
+              <input id="checkbox" type="checkbox" ${isFold ? 'checked' : ''}>
+              <label class="toggle" for="checkbox">
+                <div class="bar bar--top"></div>
+                <div class="bar bar--middle"></div>
+                <div class="bar bar--bottom"></div>
+              </label>
             </div>
           </div>
           <span class="count-text">(${list.length})</span>
@@ -981,7 +956,7 @@ class BookmarkApp {
     if (isLocked) {
       return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''} private-locked" data-id="${b.id}" ${clickEvent}>
       <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
-        <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
+        <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
       </div>
       <p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
       <div class="card-footer">
@@ -992,7 +967,7 @@ class BookmarkApp {
     }
     return `<div class="bookmark-card ${b.pinned ? 'pinned' : ''} ${b.isPrivate ? 'private' : ''}" data-id="${b.id}" ${clickEvent}>
       <div class="card-header"><h3 class="card-title">${this.escapeHtml(b.title)}</h3>
-        <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌 置顶</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒 私有</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
+        <div class="card-badges">${b.pinned ? '<span class="badge badge-pinned">📌</span>' : ''}${b.isPrivate ? '<span class="badge badge-private">🔒</span>' : ''}<span class="badge badge-category" style="border-color: ${categoryColor}33; color: ${categoryColor}">${this.escapeHtml(b.category || '未分类')}</span></div>
       </div>
       <p class="card-desc">${this.escapeHtml(b.description || '暂无描述')}</p>
       <div class="card-footer">
@@ -1049,7 +1024,7 @@ class BookmarkApp {
   handleDragOver(e) {
     e.preventDefault();
     if(e.target.classList.contains('category-item') && e.target !== this.dragItem) {
-      e.target.style.background = 'rgba(255,255,255,0.15)';
+      e.target.style.background = 'rgba(255,255,0.15)';
     }
   }
   handleDragLeave(e) {
@@ -1104,12 +1079,13 @@ class BookmarkApp {
     }
     if(!confirm(`确定删除空分类「${name}」？`)) return;
     try {
-      const res = await fetch(`${API_BASE}/categories/${encodeURIComponent(name)}`, {
+      const res = await fetch(`${API_BASE}/${encodeURIComponent(name)}`, {
         method:'DELETE',
         headers: this.authHeaders()
       });
       if(res.status === 401) {
         this.showToast('身份失效，请重新验证', 'error');
+        this.toggleAuth();
         return;
       }
       if(!res.ok) throw new Error('删除失败');
@@ -1323,7 +1299,7 @@ class BookmarkApp {
       if (path.length <= 20) return host + path;
       return host + path.slice(0, 20) + '...';
     } catch {
-      if (url.length > 30) return url.slice(0, 30) + '...';
+      if (url.length > 30) return url.slice(0, 30);
       return url;
     }
   }
