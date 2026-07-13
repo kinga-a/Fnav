@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
 <link rel="icon" type="image/x-icon" href="https://pan.y11.fun/api/images/fnav_favicon.png">
 <link rel="apple-touch-icon" href="https://pan.y11.fun/api/images/fnav_favicon.png">
 <title>Fnav</title>
@@ -24,20 +24,32 @@
     --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
     --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
   }
+  html {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
     min-height: 100vh;
+    min-height: 100dvh;
     overflow-x: hidden;
+    /* 适配刘海屏安全区域 */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
-  .app-layout { display: flex; min-height: 100vh; }
+  .app-layout { display: flex; min-height: 100vh; min-height: 100dvh; }
   .sidebar {
     width: 260px;
     background: var(--sidebar-bg);
     color: var(--sidebar-text);
     position: fixed;
-    left: 0; top: 0; bottom: 0;
+    left: 0;
+    top: env(safe-area-inset-top);
+    bottom: env(safe-area-inset-bottom);
     transform: translateX(-100%);
     transition: transform 0.3s ease;
     z-index: 1000;
@@ -46,7 +58,11 @@
   }
   .sidebar.open { transform: translateX(0); }
   .sidebar-overlay {
-    position: fixed; inset: 0;
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+    bottom: env(safe-area-inset-bottom);
     background: rgba(0,0,0,0.5);
     z-index: 999;
     opacity: 0; visibility: hidden;
@@ -142,11 +158,13 @@
     margin-left: 0;
     transition: margin-left 0.3s;
     min-height: 100vh;
+    min-height: 100dvh;
   }
   .top-bar {
     background: var(--card-bg);
     border-bottom: 1px solid var(--border);
     padding: 1.1rem 24px;
+    padding-top: calc(1.1rem + env(safe-area-inset-top));
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -243,7 +261,7 @@
     transition: all 0.2s;
     user-select: none;
     position: sticky;
-    top: 73px;
+    top: calc(73px + env(safe-area-inset-top));
     z-index: 50;
   }
   .category-group-header:hover {
@@ -388,42 +406,28 @@
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
   .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
   .modal-overlay {
-    position: fixed; 
-    inset: 0;
+    position: fixed;
+    top: env(safe-area-inset-top);
+    left: env(safe-area-inset-left);
+    right: env(safe-area-inset-right);
+    bottom: env(safe-area-inset-bottom);
     background: rgba(0,0,0,0.5);
     z-index: 2000;
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    opacity: 0; 
-    visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; visibility: hidden;
     transition: all 0.3s;
-    /* iOS修复：给遮罩增加全局安全边距 */
-    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
-    box-sizing: border-box;
-}
-.modal-overlay.open { 
-    opacity: 1; 
-    visibility: visible; 
-}
-.modal {
+  }
+  .modal-overlay.open { opacity: 1; visibility: visible; }
+  .modal {
     background: var(--card-bg);
     border-radius: 1rem;
-    width: 90%; 
-    max-width: 500px;
-    /* iOS修复：降低最大高度，强制上下留白 */
-    max-height: 82vh;
+    width: 90%; max-width: 500px;
+    max-height: 90vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     transform: scale(0.95);
     transition: transform 0.3s;
-    /* 关键：弹窗自身上下内边距兜底 */
-    margin: 12px 0;
-    border-top-left-radius: 16px;
-    border-top-right-radius: 16px;
-    /* 追加 */
-    overflow: hidden;
-}
+  }
   .modal-overlay.open .modal { transform: scale(1); }
   .modal-header {
     padding: 1.25rem 1.5rem;
@@ -503,7 +507,8 @@
   }
   .toast-container {
     position: fixed;
-    bottom: 1.5rem; right: 1.5rem;
+    bottom: calc(1.5rem + env(safe-area-inset-bottom));
+    right: 1.5rem;
     z-index: 3000;
     display: flex; flex-direction: column; gap: 0.5rem;
   }
@@ -551,11 +556,11 @@
       padding: 0.1rem 0.3rem;
     }
     .form-row { grid-template-columns: 1fr; }
-    .top-bar { padding: 0.75rem 1rem; }
+    .top-bar { padding: 0.75rem 1rem; padding-top: calc(0.75rem + env(safe-area-inset-top)); }
     .search-box { max-width: none; }
     .category-group-header {
       padding: 0.5rem 0.75rem;
-      top: 61px;
+      top: calc(61px + env(safe-area-inset-top));
     }
     .category-group-header .cat-name {
       font-size: 0.875rem;
@@ -577,7 +582,7 @@
   .fab-add-bookmark {
     position: fixed;
     right: 24px;
-    bottom: 24px;
+    bottom: calc(24px + env(safe-area-inset-bottom));
     width: 56px;
     height: 56px;
     border-radius: 50%;
