@@ -66,10 +66,34 @@
   }
   .sidebar-close:hover { color: #fff; }
   .nav-section { margin-bottom: 1.5rem; }
+  .nav-label-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+    padding-left: 0.75rem;
+  }
   .nav-label {
     font-size: 0.75rem; text-transform: uppercase;
     letter-spacing: 0.05em; color: #94a3b8;
-    margin-bottom: 0.75rem; padding-left: 0.75rem;
+  }
+  .cat-add-btn {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px dashed rgba(255,255,255,0.2);
+    color: #94a3b8;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+  }
+  .cat-add-btn:hover {
+    border-color: rgba(255,255,255,0.4);
+    color: #fff;
   }
   .nav-item {
     display: flex; align-items: center; gap: 0.75rem;
@@ -93,7 +117,7 @@
     border-radius: 9999px;
     font-size: 0.75rem;
   }
-  .category-list { margin-left: 0.5rem; margin-bottom: 0.75rem; }
+  .category-list { margin-left: 0.5rem; }
   .category-item {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 0.75rem 0.5rem 2rem;
@@ -123,27 +147,6 @@
   .category-item:hover .cat-del-btn { display:block; }
   .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
 
-  /* 简约新建分类按钮：纯+圆形，放在分类列表下方 */
-  .add-category-btn {
-    width: 32px;
-    height: 32px;
-    margin-left: 0.5rem;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.08);
-    color: #94a3b8;
-    border: 1px dashed rgba(255,255,0.2);
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .add-category-btn:hover {
-    border-color: rgba(255,255,0.4);
-    color: #fff;
-    background: rgba(255,255,255,0.12);
-  }
   .main-content {
     flex: 1;
     margin-left: 0;
@@ -238,9 +241,11 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1rem;
     margin-bottom: 32px;
-    transition: height 0.25s ease;
+    transition: height 0.3s ease;
   }
-  /* 分类标题增加折叠按钮 */
+  .bookmark-grid.hidden {
+    display: none;
+  }
   .category-group-title {
     margin: 32px 0 12px;
     font-size: 18px;
@@ -248,7 +253,6 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    cursor: pointer;
   }
   .category-group-title:first-child {
     margin-top: 0;
@@ -259,19 +263,22 @@
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
   }
-  /* 折叠箭头按钮 */
-  .fold-arrow {
+  .toggle-fold {
     margin-left: auto;
+    background: transparent;
+    border: none;
     font-size: 16px;
     color: var(--text-muted);
-    transition: transform 0.2s ease;
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
   }
-  .fold-arrow.fold {
-    transform: rotate(-180deg);
-  }
-  /* 分类收起隐藏卡片网格 */
-  .bookmark-grid.fold-hidden {
-    display: none;
+  .toggle-fold.fold {
+    transform: rotate(180deg);
   }
 
   .bookmark-card {
@@ -374,7 +381,6 @@
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
   .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
 
-  /* 弹窗修复：苹果手机上下留白、安全区适配 */
   .modal-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,0.5);
@@ -508,7 +514,6 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
-  /* 右下角悬浮新增按钮（登录才显示，未登录隐藏） */
   .fab-add-bookmark {
     position: fixed;
     right: 24px;
@@ -549,7 +554,6 @@ select {
     font-size: 14px;
   }
 }
-  /* 手机端适配 */
   @media (max-width: 768px) {
     .bookmark-grid { 
       grid-template-columns: 1fr 1fr; 
@@ -605,12 +609,13 @@ select {
         <span class="count" id="countPrivate">0</span>
       </a>
     </div>
+    <!-- 改动1：分类标题右侧同行+按钮，删除单独addCategoryBtn块 -->
     <div class="nav-section">
-      <div class="nav-label">分类（可拖动排序）</div>
-      <!-- 分类列表在上 -->
+      <div class="nav-label-wrap">
+        <span class="nav-label">分类（可拖动排序）</span>
+        <button class="cat-add-btn" id="addCategoryBtn" onclick="app.showAddCategory()">+</button>
+      </div>
       <div id="categoryList" class="category-list"></div>
-      <!-- 新建分类移到列表下方，纯+简约按钮 -->
-      <div class="add-category-btn" id="addCategoryBtn" onclick="app.showAddCategory()" style="display:none">+</div>
     </div>
     <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
       <div class="nav-item" onclick="app.toggleAuth()">
@@ -639,7 +644,6 @@ select {
     </div>
   </div>
 </div>
-<!-- 右下角悬浮新增按钮 -->
 <button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -665,7 +669,7 @@ select {
         <div class="form-group">
           <label class="form-label">分类</label>
           <select class="form-select" id="formCategory"></select>
-          <div class="form-hint">如需新增分类，请在侧边栏点击「+」</div>
+          <div class="form-hint">如需新增分类，请在侧边栏点击分类旁「+」</div>
         </div>
         <div class="form-row">
           <div class="checkbox-group">
@@ -742,7 +746,7 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
-    // 存储分类折叠状态 key:分类名 value:boolean(是否收起)
+    // 新增：分类折叠状态存储
     this.foldState = {};
     if (this.authToken) this.isAuthenticated = true;
     this.init();
@@ -831,7 +835,7 @@ class BookmarkApp {
     });
   }
   // 切换分类折叠状态
-  toggleFoldCategory(catName) {
+  toggleFold(catName) {
     this.foldState[catName] = !this.foldState[catName];
     this.renderBookmarks();
   }
@@ -864,21 +868,19 @@ class BookmarkApp {
     sortedGroups.forEach(group => {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
-      const isFold = !!this.foldState[name];
-      // 折叠箭头 ▲ / ▼
-      const arrowClass = isFold ? 'fold-arrow fold' : 'fold-arrow';
-      const gridHideClass = isFold ? 'bookmark-grid fold-hidden' : 'bookmark-grid';
-      html += `<h2 class="category-group-title" onclick="app.toggleFoldCategory('${this.escapeHtml(name)}')">
-        <span class="dot" style="background:${color}"></span>
-        ${this.escapeHtml(name)}
-        <span class="count-text">(${list.length})</span>
-        <span class="${arrowClass}">▲</span>
-      </h2>`;
-      html += `<div class="${gridHideClass}">`;
+      const isFold = this.foldState[name];
+      html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
+        <h2 class="category-group-title">
+          <span class="dot" style="background:${color}"></span>
+          ${this.escapeHtml(name)}
+          <span class="count-text">(${list.length})</span>
+          <button class="toggle-fold ${isFold ? 'fold' : ''}" onclick="app.toggleFold('${this.escapeHtml(name)}')">▲</button>
+        </h2>
+        <div class="bookmark-grid ${isFold ? 'hidden' : ''}">`;
       list.forEach(b => {
         html += this.createBookmarkCard(b);
       });
-      html += `</div>`;
+      html += `</div></div>`;
     });
     wrap.innerHTML = html;
   }
