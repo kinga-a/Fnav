@@ -388,24 +388,42 @@
   .empty-state .icon { font-size: 3rem; margin-bottom: 1rem; }
   .empty-state h3 { font-size: 1.25rem; color: var(--text); margin-bottom: 0.5rem; }
   .modal-overlay {
-    position: fixed; inset: 0;
+    position: fixed; 
+    inset: 0;
     background: rgba(0,0,0,0.5);
     z-index: 2000;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; visibility: hidden;
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    opacity: 0; 
+    visibility: hidden;
     transition: all 0.3s;
-  }
-  .modal-overlay.open { opacity: 1; visibility: visible; }
-  .modal {
+    /* iOS修复：给遮罩增加全局安全边距 */
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    box-sizing: border-box;
+}
+.modal-overlay.open { 
+    opacity: 1; 
+    visibility: visible; 
+}
+.modal {
     background: var(--card-bg);
     border-radius: 1rem;
-    width: 90%; max-width: 500px;
-    max-height: 90vh;
+    width: 90%; 
+    max-width: 500px;
+    /* iOS修复：降低最大高度，强制上下留白 */
+    max-height: 82vh;
     overflow-y: auto;
     box-shadow: var(--shadow-lg);
     transform: scale(0.95);
     transition: transform 0.3s;
-  }
+    /* 关键：弹窗自身上下内边距兜底 */
+    margin: 12px 0;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    /* 追加 */
+    overflow: hidden;
+}
   .modal-overlay.open .modal { transform: scale(1); }
   .modal-header {
     padding: 1.25rem 1.5rem;
