@@ -77,22 +77,24 @@
     font-size: 0.75rem; text-transform: uppercase;
     letter-spacing: 0.05em; color: #94a3b8;
   }
+  /* 优化：侧边栏新建分类圆形加号按钮 */
   .cat-add-btn {
     width: 20px;
     height: 20px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
-    border: 1px dashed rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    border: none;
     color: #94a3b8;
-    border-radius: 4px;
+    border-radius: 50%;
     cursor: pointer;
     font-size: 16px;
     line-height: 1;
+    transition: all 0.2s ease;
   }
   .cat-add-btn:hover {
-    border-color: rgba(255,255,255,0.4);
+    background: var(--primary);
     color: #fff;
   }
   .nav-item {
@@ -241,10 +243,13 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1rem;
     margin-bottom: 32px;
-    transition: height 0.3s ease;
+    transition: all 0.3s ease;
   }
   .bookmark-grid.hidden {
     display: none;
+    opacity: 0;
+    height: 0;
+    margin-bottom: 0;
   }
   .category-group-title {
     margin: 32px 0 12px;
@@ -263,22 +268,26 @@
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
   }
+  /* 优化折叠按钮样式，替换单调三角 */
   .toggle-fold {
     margin-left: auto;
-    background: transparent;
+    background: rgba(0,0,0,0.04);
     border: none;
-    font-size: 16px;
+    font-size: 18px;
     color: var(--text-muted);
     cursor: pointer;
-    width: 24px;
-    height: 24px;
-    display: flex;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.2s;
+    transition: all 0.2s ease;
   }
-  .toggle-fold.fold {
-    transform: rotate(180deg);
+  .toggle-fold:hover {
+    background: rgba(79,70,229,0.1);
+    color: var(--primary);
+    transform: scale(1.08);
   }
 
   .bookmark-card {
@@ -609,7 +618,6 @@ select {
         <span class="count" id="countPrivate">0</span>
       </a>
     </div>
-    <!-- 改动1：分类标题右侧同行+按钮，删除单独addCategoryBtn块 -->
     <div class="nav-section">
       <div class="nav-label-wrap">
         <span class="nav-label">分类（可拖动排序）</span>
@@ -669,7 +677,7 @@ select {
         <div class="form-group">
           <label class="form-label">分类</label>
           <select class="form-select" id="formCategory"></select>
-          <div class="form-hint">如需新增分类，请在侧边栏点击分类旁「+」</div>
+          <div class="form-hint">如需新增分类，请在侧边栏分类旁「+」</div>
         </div>
         <div class="form-row">
           <div class="checkbox-group">
@@ -746,7 +754,6 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
-    // 新增：分类折叠状态存储
     this.foldState = {};
     if (this.authToken) this.isAuthenticated = true;
     this.init();
@@ -834,7 +841,6 @@ class BookmarkApp {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }
-  // 切换分类折叠状态
   toggleFold(catName) {
     this.foldState[catName] = !this.foldState[catName];
     this.renderBookmarks();
@@ -869,12 +875,14 @@ class BookmarkApp {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
       const isFold = this.foldState[name];
+      // 优化：展开显示减号，折叠显示加号，替代三角
+      const foldIcon = isFold ? '+' : '−';
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
           <span class="dot" style="background:${color}"></span>
           ${this.escapeHtml(name)}
           <span class="count-text">(${list.length})</span>
-          <button class="toggle-fold ${isFold ? 'fold' : ''}" onclick="app.toggleFold('${this.escapeHtml(name)}')">▲</button>
+          <button class="toggle-fold" onclick="app.toggleFold('${this.escapeHtml(name)}')">${foldIcon}</button>
         </h2>
         <div class="bookmark-grid ${isFold ? 'hidden' : ''}">`;
       list.forEach(b => {
