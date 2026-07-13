@@ -268,10 +268,9 @@
   }
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
-    margin-left: auto 8px;
   }
 
-  /* ===================== 导入Uiverse滑动开关样式，缩小适配标题 ===================== */
+  /* 滑动开关统一主题色：选中改为主紫色，全站风格统一 */
 .toggle-wrapper {
   display: flex;
   justify-content: center;
@@ -281,7 +280,7 @@
   padding: .125em;
   background-image: linear-gradient(to bottom, #d5d5d5, #e8e8e8);
   box-shadow: 0 1px 1px rgb(255 255 255 / .6);
-  font-size: 0.9em; /* 缩小尺寸适配标题 */
+  font-size: 0.9em;
   flex-shrink: 0;
   cursor: pointer;
 }
@@ -309,9 +308,9 @@
   box-shadow: inset 0 0 .0625em .125em rgb(255 255 255 / .2), inset 0 .0625em .125em rgb(0 0 0 / .4);
   transition: background-color .4s linear;
 }
-
+/* 替换原黄色，使用网站主紫色统一风格 */
 .toggle-checkbox:checked + .toggle-container {
-  background-color: #f3b519;
+  background-color: var(--primary);
 }
 
 .toggle-button {
@@ -620,7 +619,6 @@ select {
     font-size: 14px;
   }
 }
-  /* 手机端：一行2个卡片 */
   @media (max-width: 768px) {
     .bookmark-grid { 
       grid-template-columns: 1fr 1fr; 
@@ -812,7 +810,6 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
-    // 存储分类折叠状态 true=收起，false=展开
     this.foldState = {};
     if (this.authToken) this.isAuthenticated = true;
     this.init();
@@ -900,7 +897,6 @@ class BookmarkApp {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }
-  // 切换分类折叠状态
   toggleFold(catName) {
     this.foldState[catName] = !this.foldState[catName];
     this.renderBookmarks();
@@ -934,12 +930,12 @@ class BookmarkApp {
     sortedGroups.forEach(group => {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
-      const isFold = this.foldState[name] || false;
+      const isFold = this.foldState[name];
       html += `<div class="category-group-wrap" data-cat="${this.escapeHtml(name)}">
         <h2 class="category-group-title">
           <span class="dot" style="background:${color}"></span>
           ${this.escapeHtml(name)}
-          <!-- Uiverse滑动开关替换原有±文字按钮 -->
+          <!-- 统一主题色滑动开关 -->
           <div class="toggle-wrapper" onclick="app.toggleFold('${this.escapeHtml(name)}')">
             <input class="toggle-checkbox" type="checkbox" ${isFold ? 'checked' : ''}>
             <div class="toggle-container">
@@ -1114,7 +1110,6 @@ class BookmarkApp {
       });
       if(res.status === 401) {
         this.showToast('身份失效，请重新验证', 'error');
-        this.toggleAuth();
         return;
       }
       if(!res.ok) throw new Error('删除失败');
@@ -1145,7 +1140,7 @@ class BookmarkApp {
     document.getElementById('formTitle').focus();
   }
   editBookmark(id) {
-    const b = this.bookmarks.find(x => x.id === id);
+    const b = this.bookmarks.find(x => x.id);
     if (!b) return;
     document.getElementById('bookmarkId').value = b.id;
     document.getElementById('formTitle').value = b.title;
