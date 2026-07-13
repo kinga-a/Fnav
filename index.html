@@ -93,7 +93,7 @@
     border-radius: 9999px;
     font-size: 0.75rem;
   }
-  .category-list { margin-left: 0.5rem; }
+  .category-list { margin-left: 0.5rem; margin-bottom: 0.75rem; }
   .category-item {
     display: flex; align-items: center; gap: 0.5rem;
     padding: 0.5rem 0.75rem 0.5rem 2rem;
@@ -122,20 +122,27 @@
   }
   .category-item:hover .cat-del-btn { display:block; }
   .cat-del-btn:hover { background:rgba(239,68,68,0.2); color:#ef4444; }
+
+  /* 简约新建分类按钮：纯+圆形，放在分类列表下方 */
   .add-category-btn {
-    display: flex; align-items: center; gap: 0.5rem;
-    padding: 0.5rem 0.75rem;
+    width: 32px;
+    height: 32px;
+    margin-left: 0.5rem;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
     color: #94a3b8;
-    font-size: 0.875rem;
-    cursor: pointer;
     border: 1px dashed rgba(255,255,0.2);
-    border-radius: 0.5rem;
-    margin-top: 0.5rem;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
     transition: all 0.2s;
   }
   .add-category-btn:hover {
     border-color: rgba(255,255,0.4);
     color: #fff;
+    background: rgba(255,255,255,0.12);
   }
   .main-content {
     flex: 1;
@@ -223,18 +230,17 @@
   .section-title { font-size: 1.5rem; font-weight: 700; }
   .section-desc { color: var(--text-muted); font-size: 0.875rem; margin-top: 0.25rem; }
 
-  /* 外层容器流式布局，修复空白 */
   #bookmarkGrid {
     display: block;
   }
-  /* 单分类卡片网格 */
   .bookmark-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
     gap: 1rem;
     margin-bottom: 32px;
+    transition: height 0.25s ease;
   }
-  /* 分类标题样式 */
+  /* 分类标题增加折叠按钮 */
   .category-group-title {
     margin: 32px 0 12px;
     font-size: 18px;
@@ -242,6 +248,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
+    cursor: pointer;
   }
   .category-group-title:first-child {
     margin-top: 0;
@@ -251,6 +258,20 @@
   }
   .category-group-title .count-text {
     font-size:13px;color:var(--text-muted);font-weight:normal;
+  }
+  /* 折叠箭头按钮 */
+  .fold-arrow {
+    margin-left: auto;
+    font-size: 16px;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+  }
+  .fold-arrow.fold {
+    transform: rotate(-180deg);
+  }
+  /* 分类收起隐藏卡片网格 */
+  .bookmark-grid.fold-hidden {
+    display: none;
   }
 
   .bookmark-card {
@@ -361,7 +382,6 @@
     display: flex; align-items: center; justify-content: center;
     opacity: 0; visibility: hidden;
     transition: all 0.3s;
-    /* iOS安全区留白 */
     padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
     box-sizing: border-box;
   }
@@ -587,10 +607,10 @@ select {
     </div>
     <div class="nav-section">
       <div class="nav-label">分类（可拖动排序）</div>
+      <!-- 分类列表在上 -->
       <div id="categoryList" class="category-list"></div>
-      <div class="add-category-btn" id="addCategoryBtn" onclick="app.showAddCategory()" style="display:none">
-        <span>+</span> 新建分类
-      </div>
+      <!-- 新建分类移到列表下方，纯+简约按钮 -->
+      <div class="add-category-btn" id="addCategoryBtn" onclick="app.showAddCategory()" style="display:none">+</div>
     </div>
     <div class="nav-section" style="margin-top: auto; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">
       <div class="nav-item" onclick="app.toggleAuth()">
@@ -606,7 +626,6 @@ select {
         <span class="search-icon">🔍</span>
         <input type="text" id="searchInput" placeholder="搜索书签标题、链接、描述..." oninput="app.handleSearch(this.value)">
       </div>
-      <!-- 已彻底删除顶部#addBookmarkBtn按钮（方案A） -->
       <div class="top-actions" id="topActions"></div>
     </div>
     <div class="content-area">
@@ -620,7 +639,7 @@ select {
     </div>
   </div>
 </div>
-<!-- 仅保留右下角悬浮新增按钮 -->
+<!-- 右下角悬浮新增按钮 -->
 <button class="fab-add-bookmark" id="fabAddBtn" onclick="app.showAddModal()">+</button>
 <div class="modal-overlay" id="bookmarkModal" onclick="app.closeModalByOverlay(event)">
   <div class="modal" onclick="event.stopPropagation()">
@@ -646,7 +665,7 @@ select {
         <div class="form-group">
           <label class="form-label">分类</label>
           <select class="form-select" id="formCategory"></select>
-          <div class="form-hint">如需新增分类，请在侧边栏点击「新建分类」</div>
+          <div class="form-hint">如需新增分类，请在侧边栏点击「+」</div>
         </div>
         <div class="form-row">
           <div class="checkbox-group">
@@ -723,6 +742,8 @@ class BookmarkApp {
     this.deleteTarget = null;
     this.sidebarOpen = false;
     this.dragItem = null;
+    // 存储分类折叠状态 key:分类名 value:boolean(是否收起)
+    this.foldState = {};
     if (this.authToken) this.isAuthenticated = true;
     this.init();
   }
@@ -809,7 +830,11 @@ class BookmarkApp {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
   }
-  // 修复版分组渲染 解决空白
+  // 切换分类折叠状态
+  toggleFoldCategory(catName) {
+    this.foldState[catName] = !this.foldState[catName];
+    this.renderBookmarks();
+  }
   renderBookmarks() {
     const wrap = document.getElementById('bookmarkGrid');
     wrap.innerHTML = '';
@@ -839,12 +864,17 @@ class BookmarkApp {
     sortedGroups.forEach(group => {
       const { name, list } = group;
       const color = this.getCategoryColor(name);
-      html += `<h2 class="category-group-title">
+      const isFold = !!this.foldState[name];
+      // 折叠箭头 ▲ / ▼
+      const arrowClass = isFold ? 'fold-arrow fold' : 'fold-arrow';
+      const gridHideClass = isFold ? 'bookmark-grid fold-hidden' : 'bookmark-grid';
+      html += `<h2 class="category-group-title" onclick="app.toggleFoldCategory('${this.escapeHtml(name)}')">
         <span class="dot" style="background:${color}"></span>
         ${this.escapeHtml(name)}
         <span class="count-text">(${list.length})</span>
+        <span class="${arrowClass}">▲</span>
       </h2>`;
-      html += `<div class="bookmark-grid">`;
+      html += `<div class="${gridHideClass}">`;
       list.forEach(b => {
         html += this.createBookmarkCard(b);
       });
@@ -1013,7 +1043,6 @@ class BookmarkApp {
     for (let i = 0; i < category.length; i++) hash = category.charCodeAt(i) + ((hash << 5) - hash);
     return colors[Math.abs(hash) % colors.length];
   }
-  // 打开弹窗前鉴权，未登录弹窗打不开
   showAddModal() {
     if(!this.isAuthenticated){
       this.showToast('请先验证身份后添加书签','error');
@@ -1162,7 +1191,6 @@ class BookmarkApp {
     });
     this.showToast('已退出验证', 'info');
   }
-  // 关键：控制右下角悬浮按钮登录显示、未登录隐藏
   updateAuthUI() {
     const icon = document.getElementById('authIcon');
     const status = document.getElementById('authStatus');
@@ -1174,14 +1202,12 @@ class BookmarkApp {
       status.textContent = '已验证';
       if (addCatBtn) addCatBtn.style.display = 'flex';
       navPrivate.style.display = 'flex';
-      // 登录显示悬浮加号
       if(fabBtn) fabBtn.style.display = 'flex';
     } else {
       icon.textContent = '🔒';
       status.textContent = '未验证';
       if (addCatBtn) addCatBtn.style.display = 'none';
       navPrivate.style.display = 'none';
-      // 未验证隐藏右下角新增按钮
       if(fabBtn) fabBtn.style.display = 'none';
     }
   }
