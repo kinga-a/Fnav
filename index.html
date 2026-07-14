@@ -643,67 +643,46 @@ select {
   }
 }
   @media (max-width: 768px) {
-    .bookmark-grid { 
+     .bookmark-grid { 
       grid-template-columns: 1fr 1fr; 
-      gap: 0.4rem;
-      margin-bottom: 12px;
+      gap: 0.6rem;
+      margin-bottom:20px;
     }
     .bookmark-card {
-      padding: 0.5rem;
+      padding: 0.9rem;
       border-radius: var(--radius-md);
     }
     .card-title {
-      font-size: 0.7rem;
+      font-size: 0.8rem;
     }
     .card-desc {
-      font-size: 0.6rem;
+      font-size: 0.7rem;
       -webkit-line-clamp: 1;
-      margin-bottom: 0.3rem;
+      margin-bottom: 0.5rem;
     }
     .card-link {
-      font-size: 0.6rem;
+      font-size: 0.7rem;
     }
     .badge {
-      font-size: 0.4rem;
-      padding: 0.06rem 0.2rem;
+      font-size: 0.5rem;
+      padding: 0.1rem 0.3rem;
     }
-    .top-bar { padding: 0.5rem 0.625rem; }
-    .search-box input { font-size: 0.7rem; padding: 0.3rem 0.75rem 0.3rem 2rem; }
-    .content-area { padding: 0.875rem 10px; }
-    .section-title { font-size: 0.9rem; }
-    .section-desc { font-size: 0.6rem; }
-    .sidebar { width: 200px; padding: 0.875rem 0.625rem; }
-    .sidebar-title { font-size: 0.8rem; }
-    .nav-item { font-size: 0.7rem; padding: 0.35rem 0.5rem; }
-    .nav-label { font-size: 0.6rem; }
-    .category-item { font-size: 0.65rem; padding: 0.3rem 0.5rem 0.3rem 1.5rem; }
-    .menu-btn { font-size: 1rem; }
+    .top-bar { padding: 0.75rem 1rem; }
+    .search-box { max-width: none; }
+    .content-area { padding: 1.2rem 16px; }
+    .section-title { font-size: 1.25rem; }
     /* 移动端弹窗加宽底部安全区 */
     .modal-overlay {
-      padding: max(10px, env(safe-area-inset-top)) 10px max(32px, env(safe-area-inset-bottom));
+      padding: max(12px, env(safe-area-inset-top)) 12px max(40px, env(safe-area-inset-bottom));
     }
-    .modal { max-width: 94%; }
-    .modal-title { font-size: 0.8rem; }
-    .modal-header { padding: 0.75rem 0.875rem; }
-    .modal-body { padding: 0.75rem; }
-    .modal-footer { padding: 0.625rem 0.875rem; }
-    .form-label { font-size: 0.7rem; }
-    .form-input, .form-select, .form-textarea { font-size: 0.7rem; padding: 0.35rem 0.5rem; }
-    .form-hint { font-size: 0.6rem; }
-    .checkbox-group label { font-size: 0.7rem; }
-    .btn { font-size: 0.7rem; padding: 0.3rem 0.625rem; }
-    .fab-add-bookmark { width: 40px; height: 40px; font-size: 18px; right: 12px; bottom: max(12px, env(safe-area-inset-bottom) + 8px); }
-    .category-group-title { font-size: 12px; margin: 16px 0 6px; }
-    .category-group-title .count-text { font-size: 10px; }
-    .card-actions button { font-size: 0.65rem; }
-    .empty-state { padding: 2rem 0.875rem; }
-    .empty-state .icon { font-size: 1.75rem; }
-    .empty-state h3 { font-size: 0.9rem; }
-    .auth-title { font-size: 0.9rem; }
-    .auth-desc { font-size: 0.7rem; }
-    .auth-input { font-size: 0.75rem; padding: 0.4rem; }
-    .auth-icon { font-size: 1.75rem; }
-    .toast { min-width: 180px; padding: 0.5rem 0.75rem; }
+    .modal-footer {
+      padding: 0.8rem 1rem;
+    }
+    .modal-header {
+      padding: 1rem 1rem;
+    }
+    .modal-body {
+      padding: 1rem}
   }
 </style>
 <base target="_blank">
