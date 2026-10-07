@@ -123,6 +123,18 @@ async function saveCategoryLinks(kv: any, links: any[]) {
     grouped[catId].push(link);
   }
 
+  // 先清空所有旧的 links:* key，避免空分类残留
+  try {
+    const existingKeys = await kv.list({ prefix: 'links:' });
+    if (existingKeys && existingKeys.keys) {
+      await Promise.all(
+        existingKeys.keys.map((k: any) => kv.delete(k.name))
+      );
+    }
+  } catch (e) {
+    console.warn('Failed to list/delete old link keys:', e);
+  }
+  
   // 并行写入每个分类
   const writes = Object.entries(grouped).map(([catId, catLinks]) =>
     kv.set(categoryLinksKey(catId), JSON.stringify(catLinks))
