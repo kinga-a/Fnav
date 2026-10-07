@@ -6,6 +6,7 @@ import { useConfigContext } from '../../contexts/ConfigContext';
 import { useSearch } from '../../hooks/useSearch';
 import { useDataSync } from '../../hooks/useDataSync';
 import { scrollToCategory } from '../../utils/scrollToCategory';
+import { normalizeUrlForDedup } from '../../utils/urlDuplicate';
 import { toast } from '../../../components/Toast';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -244,6 +245,16 @@ export function AppLayout() {
       ...link,
       id: link.id && link.id.trim() !== '' ? link.id : `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
     };
+
+    // [新增] 重复书签校验：相同规范化 URL 不允许重复添加（编辑时排除自身）
+    const normalizedUrl = normalizeUrlForDedup(validLink.url);
+    const duplicate = links.find(l =>
+      l.id !== validLink.id && normalizeUrlForDedup(l.url) === normalizedUrl
+    );
+    if (duplicate) {
+      toast.error(`链接已存在：「${duplicate.title}」(${duplicate.url})`);
+      return; // 不保存，弹窗保持打开让用户修改
+    }
 
     if (editingLink) {
       // 编辑现有链接：使用函数式更新避免 stale closure
