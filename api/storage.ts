@@ -114,7 +114,7 @@ async function readAllCategoryLinks(kv: any) {
 }
 
 // 保存链接到对应的分类 key
-async function saveCategoryLinks(kv: any, links: any[]) {
+async function saveCategoryLinks(kv: any, links: any[], categories?: any[]) {
   // 按 categoryId 分组
   const grouped: Record<string, any[]> = {};
   for (const link of links) {
@@ -123,24 +123,20 @@ async function saveCategoryLinks(kv: any, links: any[]) {
     grouped[catId].push(link);
   }
 
-  // 先清空所有旧的 links:* key，避免空分类残留
-  try {
-    const existingKeys = await kv.list({ prefix: 'links:' });
-    if (existingKeys && existingKeys.keys) {
-      await Promise.all(
-        existingKeys.keys.map((k: any) => kv.delete(k.name))
-      );
-    }
-  } catch (e) {
-    console.warn('Failed to list/delete old link keys:', e);
-  }
-  
   // 并行写入每个分类
   const writes = Object.entries(grouped).map(([catId, catLinks]) =>
     kv.set(categoryLinksKey(catId), JSON.stringify(catLinks))
   );
 
-  await Promise.all(writes);
+  // [修复] 删除后为空的分类：清掉旧的 KV key，避免旧书签在刷新时“复活”
+  // 注意：@vercel/kv 没有 kv.list/kv.delete 方法，正确写法是 kv.del
+  const cleanups = (categories || []).map(async (cat: any) => {
+    if (!grouped[cat.id]) {
+      await kv.del(categoryLinksKey(cat.id));
+    }
+  });
+
+  await Promise.all([...writes, ...cleanups]);
 
   // 写入后清除旧版全量存储（可选，为了安全起见这里暂时不删，或者只写一个标记）
 }
@@ -307,7 +303,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (body.categoryId) {
           await kv.set(categoryLinksKey(body.categoryId), JSON.stringify(body.links));
         } else {
-          await saveCategoryLinks(kv, body.links);
+          const categoriesStr = await kv.get(STORAGE_KEYS.CATEGORIES_CONFIG_KEY);
+          const allCats = categoriesStr ? JSON.parse(categoriesStr as string) : [];
+          await saveCategoryLinks(kv, body.links, allCats);
         }
         return jsonResponse(res, 200, { success: true }, corsHeaders);
       }
@@ -318,7 +316,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (body.links && body.categories) {
-        await saveCategoryLinks(kv, body.links);
+        await saveCategoryLinks(kv, body.links, body.categories);
         await kv.set(STORAGE_KEYS.CATEGORIES_CONFIG_KEY, JSON.stringify(body.categories));
         return jsonResponse(res, 200, { success: true }, corsHeaders);
       } else if (body.links) {

@@ -102,7 +102,7 @@ async function readAllCategoryLinks(kv, categories, unlockedCategories = new Set
 }
 
 // 保存链接到对应的分类 key
-async function saveCategoryLinks(kv, links) {
+async function saveCategoryLinks(kv, links, categories) {
   const grouped = {};
   for (const link of links) {
     const catId = link.categoryId || 'common';
@@ -114,7 +114,14 @@ async function saveCategoryLinks(kv, links) {
     kv.put(categoryLinksKey(catId), JSON.stringify(catLinks))
   );
 
-  await Promise.all(writes);
+  // [修复] 删除后为空的分类：清掉旧的 KV key，避免旧书签在刷新时“复活”
+  const cleanups = (categories || []).map(async (cat) => {
+    if (!grouped[cat.id]) {
+      await kv.delete(categoryLinksKey(cat.id));
+    }
+  });
+
+  await Promise.all([...writes, ...cleanups]);
 }
 
 export async function onRequest(context) {
@@ -399,7 +406,9 @@ export async function onRequest(context) {
         if (body.categoryId) {
           await kv.put(categoryLinksKey(body.categoryId), JSON.stringify(body.links));
         } else {
-          await saveCategoryLinks(kv, body.links);
+          const cateStr = await kv.get(STORAGE_KEYS.CATEGORIES_CONFIG_KEY);
+          const allCats = cateStr ? JSON.parse(cateStr) : [];
+          await saveCategoryLinks(kv, body.links, allCats);
         }
         return jsonResponse({ success: true }, 200, corsHeaders);
       }
@@ -415,7 +424,7 @@ export async function onRequest(context) {
       }
 
       if (body.links && body.categories) {
-        await saveCategoryLinks(kv, body.links);
+        await saveCategoryLinks(kv, body.links, body.categories);
         const existingData = await kv.get(STORAGE_KEYS.CATEGORIES_CONFIG_KEY);
         const existingCategories = existingData ? JSON.parse(existingData) : [];
         const existingPasswords = new Map(existingCategories.map(c => [c.id, c.password]));
