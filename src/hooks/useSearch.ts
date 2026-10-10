@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { SearchMode, ExternalSearchSource, LinkItem } from '../../types';
 import { DEFAULT_SEARCH_SOURCES } from '../constants/defaultSearchSources';
 import { useLinksContext } from '../contexts/LinksContext';
@@ -14,29 +14,28 @@ export function useSearch() {
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   
-  // 站内搜索勾选状态，根据默认引擎初始化
-  const [isInternal, setIsInternal] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('visitor_search_engine');
-      if (saved) return saved === 'internal';
-    }
-    return (searchConfig?.defaultEngine || 'internal') === 'internal';
-  });
+  // 站内搜索状态：以管理员在设置面板选的默认引擎为准
+  const defaultIsInternal = (searchConfig?.defaultEngine || 'internal') === 'internal';
+  const [isInternal, setIsInternal] = useState(defaultIsInternal);
 
-  // 访客自定义的搜索引擎 ID (持久化在本地)
-  const [visitorEngineId, setVisitorEngineId] = useState<string>(() => {
+  // 访客当前会话临时切换的引擎 ID（仅当前页面会话有效，不写 localStorage 持久化）
+  const [visitorEngineId, setVisitorEngineId] = useState<string>('');
+
+  // 管理员配置加载完成 / 变更时：以服务器配置为准，清掉本地旧的引擎选择残留。
+  // 修复此前的 bug：访客曾选过外部引擎后，localStorage 会永久覆盖管理员的默认设置，
+  // 导致设置面板改了"站内搜索"也不生效。
+  useEffect(() => {
+    setIsInternal(defaultIsInternal);
+    setVisitorEngineId('');
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('visitor_search_engine') || '';
+      localStorage.removeItem('visitor_search_engine');
     }
-    return '';
-  });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [defaultIsInternal]);
 
   const updateVisitorEngine = useCallback((id: string) => {
     setVisitorEngineId(id);
-    localStorage.setItem('visitor_search_engine', id);
-    if (id === 'internal') {
-      setIsInternal(true);
-    }
+    setIsInternal(id === 'internal');
   }, []);
 
   const defaultEngineId = searchConfig?.defaultEngine || 'internal';
