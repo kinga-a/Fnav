@@ -11,8 +11,8 @@ WORKDIR /app
 ARG NPM_REGISTRY=https://registry.npmjs.org
 ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}
 
-# 安装 pnpm（>=8 与项目 engines 兼容）
-RUN npm i -g pnpm@9
+# 安装 pnpm（11.x：与 pnpm-workspace.yaml 的 allowBuilds 语法及 lockfile 版本对齐）
+RUN npm i -g pnpm@11
 
 # 先装依赖（利用 Docker 层缓存）
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
