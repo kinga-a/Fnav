@@ -93,7 +93,9 @@ async function readAllCategoryLinks(kv: any, unlockedCategories = new Set<string
   if (categories.length === 0) {
     // 如果没有分类配置，尝试读取旧版全量链接
     const legacyData = await kv.get(STORAGE_KEYS.LINKS_CONFIG_KEY);
-    return legacyData ? (typeof legacyData === 'string' ? JSON.parse(legacyData) : legacyData) : [];
+    const legacy = legacyData ? (typeof legacyData === 'string' ? JSON.parse(legacyData) : legacyData) : [];
+    // 私人书签（isPrivate）：未登录（非管理员）时剔除
+    return isAdmin ? legacy : legacy.filter((l: any) => !l.isPrivate);
   }
 
   // 2. 并行读取每个分类的链接；密码分类未解锁且非管理员时不返回
@@ -103,7 +105,9 @@ async function readAllCategoryLinks(kv: any, unlockedCategories = new Set<string
       return [];
     }
     const data = await kv.get(categoryLinksKey(cat.id));
-    return data ? (typeof data === 'string' ? JSON.parse(data) : data) : [];
+    const links = data ? (typeof data === 'string' ? JSON.parse(data) : data) : [];
+    // 私人书签（isPrivate）：未登录（非管理员）时剔除，与前端可见性一致
+    return isAdmin ? links : links.filter((l: any) => !l.isPrivate);
   });
 
   const linkArrays = await Promise.all(linkPromises);
@@ -112,7 +116,9 @@ async function readAllCategoryLinks(kv: any, unlockedCategories = new Set<string
   // 3. 兼容性检查：如果拆分存储没数据，但旧版全量存储有数据，则返回旧版数据
   if (allLinks.length === 0) {
     const legacyData = await kv.get(STORAGE_KEYS.LINKS_CONFIG_KEY);
-    return legacyData ? (typeof legacyData === 'string' ? JSON.parse(legacyData) : legacyData) : [];
+    const legacy = legacyData ? (typeof legacyData === 'string' ? JSON.parse(legacyData) : legacyData) : [];
+    // 私人书签（isPrivate）：未登录（非管理员）时剔除
+    return isAdmin ? legacy : legacy.filter((l: any) => !l.isPrivate);
   }
 
   return allLinks;
@@ -260,7 +266,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
 
           const data = await kv.get(categoryLinksKey(categoryId));
-          return jsonResponse(res, 200, data ? (typeof data === 'string' ? JSON.parse(data) : data) : [], corsHeaders);
+          const links = data ? (typeof data === 'string' ? JSON.parse(data) : data) : [];
+          // 私人书签（isPrivate）：未登录（非管理员）时剔除，与前端可见性一致
+          const visibleLinks = isAdmin ? links : links.filter((l: any) => !l.isPrivate);
+          return jsonResponse(res, 200, visibleLinks, corsHeaders);
         }
 
         const links = await readAllCategoryLinks(kv, unlockedCategories, isAdmin);

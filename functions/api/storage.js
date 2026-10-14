@@ -94,7 +94,9 @@ async function readAllCategoryLinks(kv, categories, unlockedCategories = new Set
     }
 
     const data = await kv.get(categoryLinksKey(cat.id));
-    return data ? JSON.parse(data) : [];
+    const links = data ? JSON.parse(data) : [];
+    // 私人书签（isPrivate）：未登录（非管理员）时剔除，与前端可见性一致
+    return isAdmin ? links : links.filter(l => !l.isPrivate);
   });
 
   const linkArrays = await Promise.all(linkPromises);
@@ -300,7 +302,9 @@ export async function onRequest(context) {
 
           const data = await kv.get(categoryLinksKey(category));
           const links = data ? JSON.parse(data) : [];
-          return jsonResponse(links, 200, corsHeaders);
+          // 私人书签（isPrivate）：未登录（非管理员）时剔除，与前端可见性一致
+          const visibleLinks = isAdmin ? links : links.filter(l => !l.isPrivate);
+          return jsonResponse(visibleLinks, 200, corsHeaders);
         }
 
         const links = await readAllCategoryLinks(kv, categories, unlockedCategories, isAdmin);
