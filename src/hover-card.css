@@ -20,7 +20,7 @@
   transform: translateZ(0);
   filter: blur(20px) saturate(3) brightness(1.2) contrast(1.3);
   translate: calc(var(--pointer-x, -10) * 40%) calc(var(--pointer-y, -10) * 40%);
-  scale: 2.8;
+  scale: 1.6;
   opacity: 0.15;
   will-change: transform, filter;
   transition: opacity 0.3s ease-out;
@@ -28,7 +28,7 @@
 }
 
 .link-card:not(:hover):not(:focus-within) .icon-bg {
-  opacity: calc(0.15 * 0.3);
+  opacity: calc(0.15 * 0.15);
   transition: opacity 0.4s ease-out;
 }
 
@@ -93,7 +93,7 @@
 }
 
 .dark .link-card:not(:hover):not(:focus-within) .icon-bg {
-  opacity: calc(0.2 * 0.3);
+  opacity: calc(0.2 * 0.15);
 }
 
 .dark .link-card .icon-bg span {
@@ -145,7 +145,7 @@
 @media (max-width: 768px) {
   .link-card .icon-bg {
     filter: blur(15px) saturate(2) brightness(1.1);
-    scale: 2.2;
+    scale: 1.5;
     opacity: 0.1;
   }
 

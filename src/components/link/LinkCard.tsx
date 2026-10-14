@@ -29,6 +29,22 @@ function generateColorFromText(text: string): string {
   return `hsl(${hue}, 70%, 45%)`;
 }
 
+// hsl → "r, g, b" 字符串（供 --icon-color-rgb CSS 变量使用，hover 主题色边框/阴影）
+function hslToRgbString(hsl: string): string {
+  const m = hsl.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
+  if (!m) return '59, 130, 246';
+  const h = parseInt(m[1], 10);
+  const s = parseInt(m[2], 10) / 100;
+  const l = parseInt(m[3], 10) / 100;
+  const k = (n: number) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  const r = Math.round(255 * f(0));
+  const g = Math.round(255 * f(8));
+  const b = Math.round(255 * f(4));
+  return `${r}, ${g}, ${b}`;
+}
+
 function LinkCardInner({
   link, viewMode, isBatchEditMode, isSelected,
   onToggleSelection, onEdit, onDelete, onContextMenu,
@@ -72,6 +88,8 @@ function LinkCardInner({
 
   // 同步生成颜色，无需 useEffect + Canvas
   const fallbackColor = generateColorFromText(link.title);
+  // hover 主题色 CSS 变量：让 hover-card.css 的 [data-color-ready] 机制真正生效
+  const iconColorRgb = hslToRgbString(fallbackColor);
 
   const mergedRef = useCallback((node: HTMLDivElement | null) => {
     setNodeRef(node);
@@ -136,8 +154,11 @@ function LinkCardInner({
   return (
     <div
       ref={mergedRef}
+      data-color-ready="true"
       style={{
         ...style,
+        '--icon-color': fallbackColor,
+        '--icon-color-rgb': iconColorRgb,
         WebkitUserSelect: 'none',
         userSelect: 'none',
         WebkitTouchCallout: 'none',
