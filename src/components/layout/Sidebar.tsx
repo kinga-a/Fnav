@@ -43,9 +43,10 @@ export function Sidebar({
     }
 
     if (cat.children && cat.children.length > 0) {
-      // 有子分类：仅展开/收起二级菜单——不滚动、不关闭侧边栏，
-      // 移动端需要保持打开才能连续点击二级分类
+      // 有子分类：展开二级 + 滚动到父分类自身书签区块（父分类可能也有自己的书签）；
+      // 不关闭侧边栏，移动端保持打开可继续点击二级分类
       toggleExpand(cat.id);
+      scrollToCategory(cat.id);
       return;
     }
     scrollToCategory(cat.id);
