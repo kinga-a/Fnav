@@ -51,7 +51,11 @@ export async function onRequest(context) {
     try {
       const isCloudflareR2 = platform === 'cloudflare' || (platform !== 'edgeone' && ((env.CLOUDNAV_R2 && typeof env.CLOUDNAV_R2.delete === 'function') || env.UPLOAD_PLATFORM === 'cloudflare'));
 
-      if (isCloudflareR2) {
+      if (env.STORAGE_BACKEND === 'filesystem') {
+        // Docker 部署：删除文件系统 KV 中的图标缓存
+        const kv = getKV(env);
+        await kv.delete(`favicon:${key}`);
+      } else if (isCloudflareR2) {
         if (!env.CLOUDNAV_R2) {
           return jsonResponse({ error: 'Cloudflare R2 binding CLOUDNAV_R2 not found' }, 500, corsHeaders);
         }
@@ -187,7 +191,11 @@ export async function onRequest(context) {
     const platform = formData.get('platform');
     const isCloudflareR2 = platform === 'cloudflare' || (platform !== 'edgeone' && ((env.CLOUDNAV_R2 && typeof env.CLOUDNAV_R2.put === 'function') || env.UPLOAD_PLATFORM === 'cloudflare'));
 
-    if (isCloudflareR2) {
+    if (env.STORAGE_BACKEND === 'filesystem') {
+      // Docker 部署：图标二进制写入文件系统 KV（30 天 TTL）
+      const kv = getKV(env);
+      await kv.put(`favicon:${key}`, arrayBuffer, { expirationTtl: 30 * 24 * 60 * 60 });
+    } else if (isCloudflareR2) {
       if (!env.CLOUDNAV_R2) {
         return jsonResponse({ error: 'Cloudflare R2 binding CLOUDNAV_R2 not found' }, 500, corsHeaders);
       }

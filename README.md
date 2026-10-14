@@ -145,6 +145,37 @@ functions/api/ 是 EdgeOne 的边缘函数，必须随本次一起部署，否�
    - 如需跨源访问，添加 `ALLOWED_ORIGIN`（带协议的完整 Origin，多个用逗号分隔）。
 4. 重新部署。
 
+### Docker（自托管）
+
+支持把整个站点（前端 + API + 数据存储）打包为单个 Docker 容器，数据落在宿主机目录，适合 VPS / NAS / 内网自托管。
+
+```bash
+# 1. 准备环境变量（设置管理员密码）
+cp .env.example.docker .env
+#    编辑 .env，把 PASSWORD 改成你自己的强密码
+
+# 2. 构建并启动（首次构建需拉取依赖，耗时几分钟）
+docker compose up -d --build
+
+# 3. 访问
+#    http://<服务器IP>:8080
+```
+
+- **数据持久化**：书签、分类、配置、图标缓存放 `/data`（compose 已映射到宿主机 `./data`）。备份只需备份该目录。
+- **改端口**：在 `.env` 中设置 `PORT=9090` 后重启。
+- **升级**：`git pull` 后重新 `docker compose up -d --build`。
+- **无 Docker Compose 时**：
+  ```bash
+  docker build -t fnav .
+  docker run -d --name fnav -p 8080:8080 \
+    -e PASSWORD=你的密码 \
+    -v $(pwd)/data:/data \
+    --restart unless-stopped \
+    fnav
+  ```
+
+> Docker 版将 KV 存储替换为文件系统实现（`server/index.js` 中的 `FileKV`），`functions/api/*` 的 Worker 逻辑原样复用（新增 `STORAGE_BACKEND=filesystem` 分支读写图标缓存）。线上 EdgeOne / Cloudflare / Vercel 部署不受影响。
+
 ## ⚙️ 环境变量
 
 | 变量 | 说明 | 必填 | 默认值 |
@@ -152,6 +183,15 @@ functions/api/ 是 EdgeOne 的边缘函数，必须随本次一起部署，否�
 | `PASSWORD` | 管理后台登录密码 | 是 | - |
 | `ALLOWED_ORIGIN` | 跨源访问白名单，多个用逗号分隔，**必须带协议**（如 `https://sq.y11.fun`）。不填则仅允许同源访问 | 否 | 仅同源（无 `*` 兜底） |
 | `UPLOAD_PLATFORM` | 上传与图标存储平台，部署到 Cloudflare 时可设为 `cloudflare` | 否 | - |
+
+**Docker 版额外变量**：
+
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `PORT` | 监听端口 | `8080` |
+| `HOST` | 监听地址 | `0.0.0.0` |
+| `DATA_DIR` | KV 数据目录（容器内，建议挂载 volume） | `/data` |
+| `STORAGE_BACKEND` | 固定为 `filesystem`，标识 Docker 文件存储分支 | `filesystem` |
 
 ## 🔒 安全加固说明（2026-10 更新）
 

@@ -1,0 +1,24 @@
+# F-Nav Docker Compose 一键部署
+# 用法：
+#   1. 复制示例环境变量：cp .env.example.docker .env
+#   2. 编辑 .env 设置 PASSWORD（管理员密码）
+#   3. docker compose up -d --build
+#   4. 访问 http://<服务器IP>:8080
+#
+# 数据持久化：./data 目录（书签、分类、配置、图标缓存）
+
+services:
+  fnav:
+    build: .
+    container_name: fnav
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      # 管理员密码（必填，不填则网站无鉴权，任何人可改数据）
+      - PASSWORD=${PASSWORD:?请在 .env 中设置 PASSWORD 管理员密码}
+      # 跨源白名单（逗号分隔；同源访问留空即可）
+      - ALLOWED_ORIGIN=${ALLOWED_ORIGIN:-}
+    volumes:
+      # 数据持久化到宿主机 ./data
+      - ./data:/data

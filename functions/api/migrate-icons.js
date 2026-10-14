@@ -110,7 +110,11 @@ export async function onRequest(context) {
           const storageKey = `favicon:${domain}`;
           let storageOk = false;
 
-          if (isCloudflareR2 && env.CLOUDNAV_R2) {
+          if (env.STORAGE_BACKEND === 'filesystem') {
+            // Docker 部署：图标二进制写入文件系统 KV（30 天 TTL）
+            await kv.put(storageKey, buffer, { expirationTtl: 30 * 24 * 60 * 60 });
+            storageOk = true;
+          } else if (isCloudflareR2 && env.CLOUDNAV_R2) {
             const mime = detectMimeType(buffer);
             await env.CLOUDNAV_R2.put(storageKey, buffer, {
               httpMetadata: { contentType: mime, cacheControl: 'public, max-age=31536000' }

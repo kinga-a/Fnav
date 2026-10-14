@@ -1,0 +1,13 @@
+# Docker 构建上下文忽略项
+node_modules
+.pnpm-store
+dist
+data
+.git
+.gitignore
+*.log
+.env
+.env.*
+!.env.example
+screenshots
+*.zip

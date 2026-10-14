@@ -83,9 +83,9 @@ export async function onRequest(context) {
   }
 
   // 读取 KV 缓存配置状态（优先读独立 config:icon key，fallback 到旧 config）
+  const kv = getKV(env);
   let cacheEnabled = true;
   try {
-    const kv = getKV(env);
     let iconConfig = null;
     const iconStr = await kv.get('config:icon');
     if (iconStr) {
@@ -106,10 +106,26 @@ export async function onRequest(context) {
 
   const isCloudflareR2 = (env.CLOUDNAV_R2 && typeof env.CLOUDNAV_R2.get === 'function') || env.UPLOAD_PLATFORM === 'cloudflare';
   const storageKey = key || `favicon:${domain}`;
+  // Docker 文件存储的 key 统一规范化为 favicon: 前缀（与 upload/migrate-icons/storage 一致）
+  const fsKey = storageKey.startsWith('favicon:') ? storageKey : `favicon:${storageKey}`;
 
   // 1. 尝试从 R2 或 Blob 中获取数据
   try {
-    if (isCloudflareR2) {
+    if (env.STORAGE_BACKEND === 'filesystem') {
+      // Docker 部署：图标二进制缓存在文件系统 KV 中
+      const cached = await kv.get(fsKey, { type: 'arrayBuffer' });
+      if (cached) {
+        const mime = detectMimeType(cached);
+        return new Response(cached, {
+          status: 200,
+          headers: {
+            'Content-Type': mime,
+            'Cache-Control': 'public, max-age=31536000, immutable',
+            ...corsHeaders
+          }
+        });
+      }
+    } else if (isCloudflareR2) {
       if (env.CLOUDNAV_R2) {
         const object = await env.CLOUDNAV_R2.get(storageKey);
         if (object) {
@@ -182,7 +198,10 @@ export async function onRequest(context) {
   if (buffer) {
     if (cacheEnabled) {
       try {
-        if (isCloudflareR2) {
+        if (env.STORAGE_BACKEND === 'filesystem') {
+          // Docker 部署：写入文件系统 KV（30 天 TTL，与线上 KV 缓存策略一致）
+          await kv.put(fsKey, buffer, { expirationTtl: 30 * 24 * 60 * 60 });
+        } else if (isCloudflareR2) {
           if (env.CLOUDNAV_R2) {
             const mime = detectMimeType(buffer);
             await env.CLOUDNAV_R2.put(storageKey, buffer, {
