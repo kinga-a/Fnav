@@ -43,11 +43,12 @@ export function Sidebar({
     }
 
     if (cat.children && cat.children.length > 0) {
-      // 有子分类：仅展开/收起二级菜单，不滚动页面（滚动留给点击子分类时）
+      // 有子分类：仅展开/收起二级菜单——不滚动、不关闭侧边栏，
+      // 移动端需要保持打开才能连续点击二级分类
       toggleExpand(cat.id);
-    } else {
-      scrollToCategory(cat.id);
+      return;
     }
+    scrollToCategory(cat.id);
     onClose();
   }, [toggleExpand, onClose, unlockedCategoryIds, onUnlockCategory]);
 
