@@ -147,8 +147,14 @@ export function CategorySection({
           })}
         </>
       ) : (
-        // 未激活时撑高度占位（按视图模式校准，减少滚动条误差），激活后整体替换为完整内容
-        <div style={{ minHeight: viewMode === 'detailed' ? 240 : 160 }} aria-hidden="true" />
+        // 未激活时撑高度占位（按视图模式校准，减少滚动条误差），激活后整体替换为完整内容。
+        // 占位阶段同时挂上子分类空锚点：保证侧边栏点击二级分类能找到目标，
+        // 滚动触发 IO 激活后由 scrollToCategory 校正到精确位置
+        <div style={{ minHeight: viewMode === 'detailed' ? 240 : 160 }} aria-hidden="true">
+          {category.children?.map(child => (
+            <div key={child.id} id={`cat-${child.id}`} />
+          ))}
+        </div>
       )}
     </section>
   );
