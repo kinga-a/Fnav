@@ -83,8 +83,9 @@ function categoryLinksKey(categoryId: string) {
   return `links:${categoryId}`;
 }
 
-// 读取所有分类链接
-async function readAllCategoryLinks(kv: any) {
+// 读取所有分类链接（带密码分类过滤，与 EdgeOne 版一致）
+// 密码分类：未解锁且非管理员时返回 []，绝不向匿名访客泄露私人书签
+async function readAllCategoryLinks(kv: any, unlockedCategories = new Set<string>(), isAdmin = false) {
   // 1. 获取所有分类
   const categoriesStr = await kv.get(STORAGE_KEYS.CATEGORIES_CONFIG_KEY);
   const categories = categoriesStr ? (typeof categoriesStr === 'string' ? JSON.parse(categoriesStr) : categoriesStr) : [];
@@ -95,8 +96,12 @@ async function readAllCategoryLinks(kv: any) {
     return legacyData ? (typeof legacyData === 'string' ? JSON.parse(legacyData) : legacyData) : [];
   }
 
-  // 2. 并行读取每个分类的链接
+  // 2. 并行读取每个分类的链接；密码分类未解锁且非管理员时不返回
   const linkPromises = categories.map(async (cat: any) => {
+    const hasPassword = cat.password && String(cat.password).trim() !== '';
+    if (hasPassword && !unlockedCategories.has(cat.id) && !isAdmin) {
+      return [];
+    }
     const data = await kv.get(categoryLinksKey(cat.id));
     return data ? (typeof data === 'string' ? JSON.parse(data) : data) : [];
   });
@@ -215,11 +220,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       if (getConfig === 'links') {
         const categoryId = req.query.category as string;
+
+        // 解析已解锁分类（前端解锁密码分类后携带）
+        let unlockedCategories = new Set<string>();
+        const unlockedParam = req.query.unlocked as string;
+        if (unlockedParam) {
+          try { unlockedCategories = new Set(JSON.parse(unlockedParam)); } catch { /* ignore */ }
+        }
+        const providedPassword = getAuthToken(req) || '';
+        const isAdmin = await verifyAuth(providedPassword);
+
         if (categoryId) {
+          // [安全] VULN-05（补漏）：分类级密码保护必须生效——
+          // 密码分类只有在已解锁 / catPassword 正确 / 管理员三种情况下才返回书签，
+          // 否则匿名访问者用扩展/直连 API 就能窃取私人书签
+          const categoriesData = await kv.get(STORAGE_KEYS.CATEGORIES_CONFIG_KEY);
+          const categories = categoriesData ? (typeof categoriesData === 'string' ? JSON.parse(categoriesData) : categoriesData) : [];
+          const cat = categories.find((c: any) => c.id === categoryId);
+          if (!cat) {
+            return jsonResponse(res, 404, { error: '分类不存在' }, corsHeaders);
+          }
+
+          const hasPassword = cat.password && String(cat.password).trim() !== '';
+          let isUnlocked = unlockedCategories.has(categoryId);
+
+          const categoryPassword = req.query.catPassword as string;
+          if (categoryPassword && hasPassword && !isUnlocked && !isAdmin) {
+            const inputPwd = String(categoryPassword).trim();
+            const storedPwd = String(cat.password || '').trim();
+            if (inputPwd === storedPwd) {
+              isUnlocked = true;
+            } else {
+              return jsonResponse(res, 403, { error: '密码错误' }, corsHeaders);
+            }
+          }
+
+          if (hasPassword && !isUnlocked && !isAdmin) {
+            return jsonResponse(res, 403, { error: '该分类需要密码访问' }, corsHeaders);
+          }
+
           const data = await kv.get(categoryLinksKey(categoryId));
           return jsonResponse(res, 200, data ? (typeof data === 'string' ? JSON.parse(data) : data) : [], corsHeaders);
         }
-        const links = await readAllCategoryLinks(kv);
+
+        const links = await readAllCategoryLinks(kv, unlockedCategories, isAdmin);
         return jsonResponse(res, 200, links, corsHeaders);
       }
 
@@ -250,7 +294,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // [安全] 恒脱敏：分类密码绝不返回客户端
         const sanitizedCategories = sanitizeCategories(categories);
 
-        const links = await readAllCategoryLinks(kv);
+        // [安全] VULN-05（补漏）：密码分类书签只在已解锁/管理态返回，匿名访问不泄露
+        let unlockedCategories = new Set<string>();
+        const unlockedParam = req.query.unlocked as string;
+        if (unlockedParam) {
+          try { unlockedCategories = new Set(JSON.parse(unlockedParam)); } catch { /* ignore */ }
+        }
+        const providedPassword = getAuthToken(req) || '';
+        const isAdmin = await verifyAuth(providedPassword);
+
+        const links = await readAllCategoryLinks(kv, unlockedCategories, isAdmin);
 
         return jsonResponse(res, 200, {
           links,
