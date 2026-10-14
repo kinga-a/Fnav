@@ -43,9 +43,8 @@ export function Sidebar({
     }
 
     if (cat.children && cat.children.length > 0) {
+      // 有子分类：仅展开/收起二级菜单，不滚动页面（滚动留给点击子分类时）
       toggleExpand(cat.id);
-      const targetId = cat.children[0]?.id || cat.id;
-      scrollToCategory(targetId);
     } else {
       scrollToCategory(cat.id);
     }
