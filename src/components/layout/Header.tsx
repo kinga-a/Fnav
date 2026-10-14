@@ -273,8 +273,8 @@ export function Header({
               <ChevronLeft size={18} />
             </button>
 
-            {/* 取消按钮 */}
-            <button onClick={onToggleMobileSearch} className="p-1 text-slate-500 text-xs whitespace-nowrap flex-shrink-0">
+            {/* 取消按钮：关闭移动搜索并清空搜索内容（避免下次打开残留） */}
+            <button onClick={() => { onSearchChange(''); onToggleMobileSearch(); }} className="p-1 text-slate-500 text-xs whitespace-nowrap flex-shrink-0">
               取消
             </button>
           </div>
