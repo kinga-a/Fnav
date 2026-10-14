@@ -70,6 +70,15 @@ export function getCorsHeaders(env, request) {
   const reqOrigin = request?.headers?.get('origin');
   if (!reqOrigin) return headers;
 
+  // 浏览器扩展源（chrome-extension://<扩展ID>）：扩展 ID 随本机安装而变，
+  // 无法预写白名单，放行该前缀源。受保护数据仍由鉴权/过滤把关
+  // （密码分类 403、isPrivate 剔除、管理操作需密码、?key= 需鉴权），不新增泄露面。
+  if (/^chrome-extension:\/\//i.test(reqOrigin)) {
+    headers['Access-Control-Allow-Origin'] = reqOrigin;
+    headers['Vary'] = 'Origin';
+    return headers;
+  }
+
   try {
     const originHost = new URL(reqOrigin).hostname;
     const selfHost = request ? new URL(request.url).hostname : null;
