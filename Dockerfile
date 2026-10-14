@@ -4,22 +4,26 @@
 #       KV 存储落在文件系统（/data），挂载 volume 即可持久化
 
 # ---------- 构建阶段 ----------
-FROM node:22-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# 启用 corepack（项目使用 pnpm）
-RUN corepack enable
+# npm 依赖镜像源（中国大陆服务器可传 --build-arg NPM_REGISTRY=https://registry.npmmirror.com 加速）
+ARG NPM_REGISTRY=https://registry.npmjs.org
+ENV NPM_CONFIG_REGISTRY=${NPM_REGISTRY}
+
+# 安装 pnpm（>=8 与项目 engines 兼容）
+RUN npm i -g pnpm@9
 
 # 先装依赖（利用 Docker 层缓存）
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --registry=${NPM_REGISTRY}
 
 # 构建前端
 COPY . .
 RUN pnpm build
 
 # ---------- 运行阶段 ----------
-FROM node:22-alpine AS runner
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
