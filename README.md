@@ -169,6 +169,7 @@ docker compose up -d --build
   docker build -t fnav .
   docker run -d --name fnav -p 8080:8080 \
     -e PASSWORD=你的密码 \
+    -e DATA_DIR=/data \
     -v $(pwd)/data:/data \
     --restart unless-stopped \
     fnav
