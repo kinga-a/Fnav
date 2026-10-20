@@ -140,13 +140,20 @@ export function useDataSync() {
     setLinksAndSync(links, categories);
   }, [links, categories, setLinksAndSync]);
 
-  // [修复] 本会话内登录成功（authToken 从空变有值）时，自动重新从云端拉取数据——
-  // 这次请求带 token，后端才会返回 isPrivate 私人书签；无需用户手动刷新页面。
+  // [修复] 两种场景自动重新从云端拉取完整数据，避免"内存残缺→编辑写回覆盖→书签丢失"：
+  //  1. 本会话内登录成功（authToken 从空变有值）→ 后端才会返回 isPrivate 私人书签
+  //  2. 登录后解锁密码分类（unlockedCategoryIds 变化）→ 后端才会返回该分类的书签，
+  //     否则内存里缺该分类书签，后续编辑全量写回会把它整体清空
   const prevAuthToken = useRef(authToken);
+  const prevUnlockedKey = useRef(JSON.stringify(Array.from(unlockedCategoryIds)));
   useEffect(() => {
     const wasLoggedOut = !prevAuthToken.current;
+    const unlockedKey = JSON.stringify(Array.from(unlockedCategoryIds));
+    const unlockedChanged = unlockedKey !== prevUnlockedKey.current;
     prevAuthToken.current = authToken;
-    if (wasLoggedOut && authToken) {
+    prevUnlockedKey.current = unlockedKey;
+    // 登录成功，或已登录状态下解锁了密码分类 → 重新加载完整数据
+    if ((wasLoggedOut && authToken) || (authToken && unlockedChanged)) {
       initialized.current = false; // 允许 initData 重跑
       initData(unlockedCategoryIds);
     }
