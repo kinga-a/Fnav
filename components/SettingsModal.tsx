@@ -352,7 +352,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto min-h-[300px]">
+        <div className="p-6 space-y-6 overflow-y-auto min-h-[60vh]">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
