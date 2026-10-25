@@ -161,29 +161,43 @@ export async function onRequest(context) {
     // 登录成功：重置限速计数
     resetAttempts(clientIp);
 
-    // 清理旧 Token：读取上次生成的 token 并删除
-    try {
-      const oldToken = await kv.get('last_token');
-      if (oldToken) {
-        await kv.delete(`auth_token:${oldToken}`);
+    // 读取 website 配置（分段 key config:website 优先，兼容旧全量 key config）
+    const readWebsiteConfig = async () => {
+      try {
+        const sectionStr = await kv.get('config:website');
+        if (sectionStr) return JSON.parse(sectionStr);
+        const configStr = await kv.get('config');
+        if (configStr) {
+          const cfg = JSON.parse(configStr);
+          return cfg.website || {};
+        }
+      } catch (e) { /* 读配置失败用默认值 */ }
+      return {};
+    };
+    const websiteCfg = await readWebsiteConfig();
+
+    // 清理旧 Token（单设备模式：新登录踢掉旧会话）
+    // singleDevice 默认 true（开启单设备），仅当配置明确为 false 时允许多设备同时在线
+    if (websiteCfg.singleDevice !== false) {
+      try {
+        const oldToken = await kv.get('last_token');
+        if (oldToken) {
+          await kv.delete(`auth_token:${oldToken}`);
+        }
+      } catch (e) {
+        console.warn('Failed to clean old token:', e);
       }
-    } catch (e) {
-      console.warn('Failed to clean old token:', e);
     }
 
     // 生成安全随机 Token
     const token = generateSecureToken();
 
-    // 读取密码过期配置
+    // 读取登录过期时间配置（从 websiteCfg 取，与上面同源）
     let expirationTtl = 24 * 60 * 60; // 默认 1 天
     try {
-      const configStr = await kv.get('config');
-      if (configStr) {
-        const config = JSON.parse(configStr);
-        const expiry = config.website?.passwordExpiry;
-        if (expiry) {
-          expirationTtl = calcExpiryTtl(expiry);
-        }
+      const expiry = websiteCfg.passwordExpiry;
+      if (expiry) {
+        expirationTtl = calcExpiryTtl(expiry);
       }
     } catch (e) {
       console.warn('Failed to read expiry config:', e);

@@ -7,6 +7,7 @@ import { SEARCH_ENGINES, DEFAULT_ICON_CONFIG } from '../src/constants';
 interface SettingsData {
   ai: AIConfig;
   passwordExpiry: PasswordExpiryConfig;
+  singleDevice: boolean;
   ticker: TickerConfig;
   weather: WeatherConfig;
   showPinnedWebsites: boolean;
@@ -31,6 +32,7 @@ const DEFAULT_SETTINGS: SettingsData = {
     }
   },
   passwordExpiry: { value: 1, unit: 'week' },
+  singleDevice: true,
   ticker: { enabled: false, source: 'mastodon', customItems: [] },
   weather: { enabled: false, provider: 'jinrishici', unit: 'celsius' },
   showPinnedWebsites: true,
@@ -194,6 +196,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             ...prev,
             ai: aiConfig,
             passwordExpiry: appConfig.website?.passwordExpiry || prev.passwordExpiry,
+            singleDevice: appConfig.website?.singleDevice ?? prev.singleDevice,
             ticker: appConfig.ticker || appConfig.mastodon || prev.ticker,
             weather: appConfig.weather || prev.weather,
             showPinnedWebsites: appConfig.ui?.showPinnedWebsites ?? prev.showPinnedWebsites,
@@ -230,7 +233,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
       const sections: Record<string, any> = {
         ai: finalSettings.ai,
-        website: { passwordExpiry: finalSettings.passwordExpiry },
+        website: { passwordExpiry: finalSettings.passwordExpiry, singleDevice: finalSettings.singleDevice },
         mastodon: finalSettings.ticker,
         weather: finalSettings.weather,
         search: finalSettings.search,
@@ -385,7 +388,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <section className="pt-6 border-t border-slate-200 dark:border-slate-700">
                 <h4 className="font-bold dark:text-white mb-3 text-sm flex items-center gap-2">
-                  <Clock size={16} /> 密码过期时间
+                  <Clock size={16} /> 登录过期时间
                 </h4>
                 <div className="flex gap-3">
                   <input type="number" value={settings.passwordExpiry.value} onChange={(e) => update('passwordExpiry', { ...settings.passwordExpiry, value: parseInt(e.target.value) || 1 })} min={1} className="w-24 h-11 px-3 py-2.5 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none" />
@@ -395,6 +398,24 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     <option value="month">月</option>
                     <option value="year">年</option>
                   </select>
+                </div>
+              </section>
+
+              <section className="pt-6 border-t border-slate-200 dark:border-slate-700">
+                <h4 className="font-bold dark:text-white mb-3 text-sm flex items-center gap-2">
+                  <ShieldCheck size={16} /> 登录安全
+                </h4>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <div className="text-sm text-slate-700 dark:text-slate-200 font-medium">单设备登录</div>
+                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">开启后新设备登录会踢掉旧会话；关闭则允许多设备同时在线</div>
+                  </div>
+                  <button
+                    onClick={() => update('singleDevice', !settings.singleDevice)}
+                    className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ml-3 ${settings.singleDevice ? 'bg-blue-500' : 'bg-slate-300 dark:bg-slate-600'}`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${settings.singleDevice ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
                 </div>
               </section>
 
