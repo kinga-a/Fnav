@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { LayoutGrid, Settings, X, Lock, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useCategoriesContext, CategoryWithChildren } from '../../contexts/CategoriesContext';
 import { useConfigContext } from '../../contexts/ConfigContext';
@@ -34,6 +34,16 @@ export function Sidebar({
   const { authToken } = useAuthContext();
   const { syncStatus } = useLinksContext();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  // 监听视口宽度：DevTools 切响应式时 React 不会自动重渲染，
+  // 不加这个会导致从手机视口切到 PC 视口后，内联 transform 残留把侧边栏藏起来
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== 'undefined' ? window.innerWidth >= 1024 : false
+  );
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const handleCategoryClick = useCallback((cat: CategoryWithChildren) => {
     const isLocked = cat.hasPassword && !unlockedCategoryIds.has(cat.id);
@@ -102,7 +112,7 @@ export function Sidebar({
   // 桌面端 (lg:static) 不需要 transform，直接返回 undefined
   const getTransform = () => {
     // 桌面端：lg:static 定位，不需要 transform
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+    if (isDesktop) {
       return undefined;
     }
     // 移动端
