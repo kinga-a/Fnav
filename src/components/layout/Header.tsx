@@ -259,10 +259,12 @@ export function Header({
               <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400">站内</span>
             </label>
 
-            {/* "+" 添加按钮 */}
-            <button onClick={onAddLink} className="flex items-center justify-center p-1.5 rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-[32px] min-w-[32px] cursor-pointer flex-shrink-0" title="添加链接">
-              <Plus size={18} />
-            </button>
+            {/* "+" 添加按钮：仅登录后显示（未登录点了会 401，无意义） */}
+            {authToken && (
+              <button onClick={onAddLink} className="flex items-center justify-center p-1.5 rounded-full text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 h-[32px] min-w-[32px] cursor-pointer flex-shrink-0" title="添加链接">
+                <Plus size={18} />
+              </button>
+            )}
 
             {/* 展开/折叠工具栏 */}
             <button 
