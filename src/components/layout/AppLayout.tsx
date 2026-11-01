@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
-import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X, ChevronDown } from 'lucide-react';
+import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useLinksContext } from '../../contexts/LinksContext';
 import { useCategoriesContext } from '../../contexts/CategoriesContext';
@@ -13,6 +13,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
 import { LinkItem, Category } from '../../../types';
+import { generateLinkDescription } from '../../../services/geminiService';
 import AuthModal from '../../../components/AuthModal';
 
 const LinkModal = lazy(() => import('../../../components/LinkModal'));
@@ -60,6 +61,7 @@ export function AppLayout() {
   const [isBatchEditMode, setIsBatchEditMode] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
   const [isMoveDropdownOpen, setIsMoveDropdownOpen] = useState(false);
+  const [isBatchAIGenerating, setIsBatchAIGenerating] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
@@ -317,6 +319,49 @@ export function AppLayout() {
     });
   }, [selectedLinks, links]);
 
+  // 批量 AI 描述生成：为选中链接逐个生成描述并保存
+  const handleBatchAIDescription = useCallback(async () => {
+    if (!aiConfig?.apiKey) {
+      toast.warning('请先在设置中配置 AI API Key');
+      return;
+    }
+    const selectedLinkObjs = links.filter(l => selectedLinks.has(l.id));
+    if (selectedLinkObjs.length === 0) return;
+
+    setIsBatchAIGenerating(true);
+    toast.info(`正在为 ${selectedLinkObjs.length} 个链接生成 AI 描述…`);
+
+    let successCount = 0;
+    let failCount = 0;
+    const updatedLinks = [...links];
+
+    for (const link of selectedLinkObjs) {
+      try {
+        const desc = await generateLinkDescription(link.title, link.url, aiConfig);
+        if (desc && desc !== '生成描述失败' && desc !== '请在设置中配置 API Key') {
+          const idx = updatedLinks.findIndex(l => l.id === link.id);
+          if (idx !== -1) {
+            updatedLinks[idx] = { ...updatedLinks[idx], description: desc };
+            successCount++;
+          }
+        } else {
+          failCount++;
+        }
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      setLinksAndSync(updatedLinks, categories);
+      toast.success(`AI 描述生成完成：成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`);
+    } else {
+      toast.error('AI 描述生成失败，请检查 API 配置');
+    }
+
+    setIsBatchAIGenerating(false);
+  }, [selectedLinks, links, categories, aiConfig, setLinksAndSync]);
+
   // 全选 / 取消全选
   const handleSelectAll = useCallback(() => {
     if (selectedLinks.size === links.length && links.length > 0) {
@@ -449,12 +494,15 @@ export function AppLayout() {
                       </>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button onClick={handleBatchCopy} className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50 transition-all active:scale-95 whitespace-nowrap">
-                      <Copy size={16} /> 复制链接
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={handleBatchAIDescription} disabled={isBatchAIGenerating} className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-sm font-medium rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-800/50 transition-all active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Sparkles size={16} className={isBatchAIGenerating ? 'animate-spin' : ''} /> {isBatchAIGenerating ? '生成中' : 'AI描述'}
                     </button>
-                    <button onClick={handleBatchDelete} className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white shadow-sm shadow-red-500/30 transition-all active:scale-95 whitespace-nowrap">
-                      <Trash2 size={16} /> 删除选中
+                    <button onClick={handleBatchCopy} className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50 transition-all active:scale-95 whitespace-nowrap">
+                      <Copy size={16} /> 复制
+                    </button>
+                    <button onClick={handleBatchDelete} className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white shadow-sm shadow-red-500/30 transition-all active:scale-95 whitespace-nowrap">
+                      <Trash2 size={16} /> 删除
                     </button>
                   </div>
                 </>
@@ -479,6 +527,9 @@ export function AppLayout() {
                   <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
                   <button onClick={handleBatchPin} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800/50 transition-all active:scale-95 whitespace-nowrap">
                     {allPinned ? <PinOff size={16} /> : <Pin size={16} />} {allPinned ? '取消置顶' : '置顶'}
+                  </button>
+                  <button onClick={handleBatchAIDescription} disabled={isBatchAIGenerating} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-800/50 transition-all active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Sparkles size={16} className={isBatchAIGenerating ? 'animate-spin' : ''} /> {isBatchAIGenerating ? 'AI 生成中…' : 'AI 描述'}
                   </button>
                   <div className="relative">
                     <button
