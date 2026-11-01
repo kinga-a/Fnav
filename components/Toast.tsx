@@ -17,13 +17,13 @@ interface ToastItem {
   duration: number;
 }
 
-const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 3000, onClose }) => {
-  const [isVisible, setIsVisible] = useState(true);
+const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 2000, onClose }) => {
+  const [isExiting, setIsExiting] = useState(false);
 
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(() => {
-        setIsVisible(false);
+        setIsExiting(true);
         setTimeout(onClose || (() => {}), 300);
       }, duration);
       return () => clearTimeout(timer);
@@ -31,66 +31,90 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 3000, 
   }, [duration, onClose]);
 
   const handleClose = () => {
-    setIsVisible(false);
+    setIsExiting(true);
     setTimeout(onClose || (() => {}), 300);
   };
 
-  const getIcon = () => {
+  const getConfig = () => {
     switch (type) {
       case 'success':
-        return <Check size={16} className="text-green-500" />;
+        return {
+          icon: <Check size={18} strokeWidth={3} className="text-white" />,
+          iconBg: 'bg-emerald-500',
+          barColor: 'bg-emerald-400',
+          shadow: 'shadow-emerald-500/15',
+        };
       case 'error':
-        return <X size={16} className="text-red-500" />;
+        return {
+          icon: <X size={18} strokeWidth={3} className="text-white" />,
+          iconBg: 'bg-red-500',
+          barColor: 'bg-red-400',
+          shadow: 'shadow-red-500/15',
+        };
       case 'warning':
-        return <AlertTriangle size={16} className="text-yellow-500" />;
+        return {
+          icon: <AlertTriangle size={18} strokeWidth={3} className="text-white" />,
+          iconBg: 'bg-amber-500',
+          barColor: 'bg-amber-400',
+          shadow: 'shadow-amber-500/15',
+        };
       case 'info':
       default:
-        return <Info size={16} className="text-blue-500" />;
+        return {
+          icon: <Info size={18} strokeWidth={3} className="text-white" />,
+          iconBg: 'bg-blue-500',
+          barColor: 'bg-blue-400',
+          shadow: 'shadow-blue-500/15',
+        };
     }
   };
 
-  const getStyles = () => {
-    switch (type) {
-      case 'success':
-        return 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-800 dark:text-green-200';
-      case 'error':
-        return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-800 dark:text-red-200';
-      case 'warning':
-        return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200';
-      case 'info':
-      default:
-        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200';
-    }
-  };
+  const config = getConfig();
 
   return (
     <div
       className={`
-        toast-item flex items-center gap-3 p-3.5 pr-3 rounded-xl border shadow-lg backdrop-blur-sm transition-opacity duration-300 max-w-md
-        ${getStyles()}
-        ${isVisible ? 'opacity-100' : 'opacity-0'}
+        toast-item relative flex items-center gap-3 pl-3 pr-9 py-3 rounded-2xl border
+        bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl
+        border-slate-200/70 dark:border-slate-700/50
+        shadow-lg ${config.shadow}
+        max-w-sm
+        ${isExiting ? 'toast-exit' : ''}
       `}
     >
-      <div className="flex-shrink-0">
-        {getIcon()}
+      {/* 图标圆形背景 */}
+      <div className={`flex-shrink-0 w-8 h-8 rounded-full ${config.iconBg} flex items-center justify-center shadow-sm`}>
+        {config.icon}
       </div>
-      <div className="flex-1 text-sm font-medium">
+      {/* 消息文本 */}
+      <div className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug">
         {message}
       </div>
+      {/* 关闭按钮 */}
       <button
         onClick={handleClose}
-        className="flex-shrink-0 p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+        className="absolute top-1.5 right-1.5 p-1 rounded-lg text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
+        aria-label="关闭"
       >
-        <X size={14} className="opacity-60" />
+        <X size={14} />
       </button>
+      {/* 自动消失进度条 */}
+      {duration > 0 && (
+        <div className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full overflow-hidden opacity-50">
+          <div
+            className={`h-full ${config.barColor}`}
+            style={{ animation: `toastProgress ${duration}ms linear forwards` }}
+          />
+        </div>
+      )}
     </div>
   );
 };
 
 export const ToastContainer: React.FC<{ toasts: ToastItem[]; onRemove: (id: string) => void }> = ({ toasts, onRemove }) => {
   return (
-    <div className="fixed top-4 right-4 z-[9999] space-y-2 pointer-events-none">
-      <div className="space-y-2 pointer-events-auto">
+    <div className="fixed top-6 right-4 z-[9999] flex flex-col items-end gap-2.5 pointer-events-none">
+      <div className="flex flex-col items-end gap-2.5 pointer-events-auto">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}
@@ -130,7 +154,7 @@ class ToastManager {
     this.listeners.forEach(listener => listener(this.toasts));
   }
 
-  add(message: string, type: ToastType = 'info', duration: number = 3000): string {
+  add(message: string, type: ToastType = 'info', duration: number = 2000): string {
     const id = Date.now().toString() + Math.random().toString(36);
     const toast: ToastItem = { id, message, type, duration };
     this.toasts.push(toast);
