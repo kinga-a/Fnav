@@ -448,7 +448,7 @@ export function AppLayout() {
                     <><CheckSquare size={16} /> 批量编辑</>
                   )}
                 </div>
-                <button onClick={handleSelectAll} disabled={links.length === 0} className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+                <button onClick={handleSelectAll} disabled={links.length === 0} className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${isAllSelected ? 'bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
                   <CheckSquare size={16} /> {isAllSelected ? '取消全选' : '全选'}
                 </button>
                 {hasSelection && (
@@ -519,7 +519,7 @@ export function AppLayout() {
                   <><CheckSquare size={16} /> 批量编辑</>
                 )}
               </div>
-              <button onClick={handleSelectAll} disabled={links.length === 0} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+              <button onClick={handleSelectAll} disabled={links.length === 0} className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${isAllSelected ? 'bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
                 <CheckSquare size={16} /> {isAllSelected ? '取消全选' : '全选'}
               </button>
               {hasSelection && (
