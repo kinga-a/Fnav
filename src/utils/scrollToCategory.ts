@@ -54,4 +54,7 @@ export function scrollToCategory(categoryId: string) {
   jump();
   // 目标区块若在按需渲染占位阶段，滚动会触发激活、高度变化；400ms 后校正一次到精确位置
   setTimeout(jump, 400);
+
+  // 派发自定义事件，通知 CategorySection 激活对应子分类标签页
+  window.dispatchEvent(new CustomEvent('fnav:subcategory-focus', { detail: categoryId }));
 }
