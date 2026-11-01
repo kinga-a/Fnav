@@ -12,6 +12,7 @@ interface SettingsData {
   weather: WeatherConfig;
   showPinnedWebsites: boolean;
   defaultViewMode: 'compact' | 'detailed';
+  subcategoryLayout: 'vertical' | 'tab';
   search: SearchConfig;
   icon: IconConfig;
 }
@@ -37,6 +38,7 @@ const DEFAULT_SETTINGS: SettingsData = {
   weather: { enabled: false, provider: 'jinrishici', unit: 'celsius' },
   showPinnedWebsites: true,
   defaultViewMode: 'detailed',
+  subcategoryLayout: 'tab',
   search: { mode: 'internal', externalSources: [], selectedSource: null, defaultEngine: 'internal' },
   icon: DEFAULT_ICON_CONFIG,
 };
@@ -201,6 +203,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
             weather: appConfig.weather || prev.weather,
             showPinnedWebsites: appConfig.ui?.showPinnedWebsites ?? prev.showPinnedWebsites,
             defaultViewMode: appConfig.view?.defaultMode || appConfig.view?.mode || prev.defaultViewMode,
+            subcategoryLayout: appConfig.ui?.subcategoryLayout || prev.subcategoryLayout,
             search: appConfig.search || prev.search,
             icon: appConfig.icon || prev.icon || DEFAULT_ICON_CONFIG,
           }));
@@ -238,7 +241,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         weather: finalSettings.weather,
         search: finalSettings.search,
         icon: finalSettings.icon,
-        ui: { showPinnedWebsites: finalSettings.showPinnedWebsites },
+        ui: { showPinnedWebsites: finalSettings.showPinnedWebsites, subcategoryLayout: finalSettings.subcategoryLayout },
         view: { defaultMode: finalSettings.defaultViewMode },
       };
 
@@ -474,6 +477,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button onClick={() => update('defaultViewMode', 'compact')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${settings.defaultViewMode === 'compact' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-2 border-blue-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-2 border-transparent'}`}>简约</button>
                   <button onClick={() => update('defaultViewMode', 'detailed')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${settings.defaultViewMode === 'detailed' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-2 border-blue-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-2 border-transparent'}`}>详细</button>
                 </div>
+              </section>
+
+              <section className="pt-6 border-t border-slate-200 dark:border-slate-700">
+                <h4 className="font-bold dark:text-white mb-3 text-sm flex items-center gap-2">
+                  <LayoutGrid size={16} /> 子分类排布
+                </h4>
+                <div className="flex gap-3">
+                  <button onClick={() => update('subcategoryLayout', 'vertical')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${settings.subcategoryLayout === 'vertical' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-2 border-blue-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-2 border-transparent'}`}>垂直依次排列</button>
+                  <button onClick={() => update('subcategoryLayout', 'tab')} className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${settings.subcategoryLayout === 'tab' ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 border-2 border-blue-500' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-2 border-transparent'}`}>横向标签排列</button>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2">选择子分类的展示方式：垂直依次排列为传统上下堆叠，横向标签排列为点击切换标签页。</p>
               </section>
 
               <section className="pt-6 border-t border-slate-200 dark:border-slate-700">

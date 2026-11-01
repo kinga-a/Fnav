@@ -18,6 +18,7 @@ interface ConfigState {
   viewMode: 'compact' | 'detailed';
   showPinnedWebsites: boolean;
   darkMode: boolean;
+  subcategoryLayout: 'vertical' | 'tab';
 }
 
 type ConfigAction =
@@ -31,6 +32,7 @@ type ConfigAction =
   | { type: 'SET_VIEW_MODE'; payload: 'compact' | 'detailed' }
   | { type: 'SET_SHOW_PINNED'; payload: boolean }
   | { type: 'SET_DARK_MODE'; payload: boolean }
+  | { type: 'SET_SUBCATEGORY_LAYOUT'; payload: 'vertical' | 'tab' }
   | { type: 'LOAD_CONFIG'; payload: Partial<ConfigState> };
 
 interface ConfigContextValue extends ConfigState {
@@ -45,6 +47,7 @@ interface ConfigContextValue extends ConfigState {
   setViewMode: (mode: 'compact' | 'detailed') => void;
   setShowPinned: (show: boolean) => void;
   setDarkMode: (dark: boolean) => void;
+  setSubcategoryLayout: (layout: 'vertical' | 'tab') => void;
   syncConfigToKV: (authToken: string) => Promise<boolean>;
   loadConfigFromKV: (authToken: string) => Promise<void>;
 }
@@ -97,6 +100,7 @@ function configReducer(state: ConfigState, action: ConfigAction): ConfigState {
     case 'SET_VIEW_MODE': return { ...state, viewMode: action.payload };
     case 'SET_SHOW_PINNED': return { ...state, showPinnedWebsites: action.payload };
     case 'SET_DARK_MODE': return { ...state, darkMode: action.payload };
+    case 'SET_SUBCATEGORY_LAYOUT': return { ...state, subcategoryLayout: action.payload };
     case 'LOAD_CONFIG': return { ...state, ...action.payload };
     default: return state;
   }
@@ -122,6 +126,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
   const savedTheme = localStorage.getItem('cloudnav_theme_preference');
   const systemPrefersDark = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
   const savedViewMode = localStorage.getItem('cloudnav_view_mode_preference');
+  const savedSubcategoryLayout = localStorage.getItem('cloudnav_subcategory_layout_preference');
 
   const [state, dispatch] = useReducer(configReducer, {
     ai: configManager.getAIConfig() || defaultAI,
@@ -136,6 +141,9 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       : (configManager.getViewMode()?.defaultMode || 'detailed'),
     showPinnedWebsites: configManager.getUIConfig()?.showPinnedWebsites ?? true,
     darkMode: savedTheme ? savedTheme === 'dark' : systemPrefersDark,
+    subcategoryLayout: (savedSubcategoryLayout === 'vertical' || savedSubcategoryLayout === 'tab')
+      ? savedSubcategoryLayout
+      : (configManager.getUIConfig()?.subcategoryLayout || 'tab'),
   });
 
   // 初始化时应用主题
@@ -210,6 +218,12 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     applyThemeColorMeta(dark);
   }, []);
 
+  const setSubcategoryLayout = useCallback((layout: 'vertical' | 'tab') => {
+    dispatch({ type: 'SET_SUBCATEGORY_LAYOUT', payload: layout });
+    localStorage.setItem('cloudnav_subcategory_layout_preference', layout);
+    configManager.updateUIConfig({ subcategoryLayout: layout });
+  }, []);
+
   const syncConfigToKV = useCallback(async (authToken: string) => {
     return configManager.syncToKV(authToken);
   }, []);
@@ -243,7 +257,7 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
       ...state,
       initConfig,
       setAI, setWebsite, setWebDav, setSearch, setIcon,
-      setMastodon, setWeather, setViewMode, setShowPinned, setDarkMode,
+      setMastodon, setWeather, setViewMode, setShowPinned, setDarkMode, setSubcategoryLayout,
       syncConfigToKV, loadConfigFromKV,
     }}>
       {children}

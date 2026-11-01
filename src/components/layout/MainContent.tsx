@@ -34,7 +34,7 @@ export function MainContent({
 }: MainContentProps) {
   const { links = [], pinnedLinks = [], getLinksByCategory } = useLinksContext();
   const { categoryTree = [], categories = [], unlockedCategoryIds } = useCategoriesContext();
-  const { showPinnedWebsites = true, viewMode = 'compact' } = useConfigContext();
+  const { showPinnedWebsites = true, viewMode = 'compact', subcategoryLayout = 'tab' } = useConfigContext();
   const { authToken } = useAuthContext();
   const { sensors, handleDragEnd, handlePinnedDragEnd } = useDragSort();
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -185,6 +185,7 @@ export function MainContent({
               links={catLinks}
               subcategoryLinks={subcategoryLinks}
               viewMode={viewMode}
+              subcategoryLayout={subcategoryLayout}
               isBatchEditMode={isBatchEditMode}
               selectedLinks={selectedLinks}
               onToggleSelection={onToggleSelection}

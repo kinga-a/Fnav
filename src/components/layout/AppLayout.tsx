@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
+import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useLinksContext } from '../../contexts/LinksContext';
 import { useCategoriesContext } from '../../contexts/CategoriesContext';
@@ -28,7 +29,7 @@ export function AppLayout() {
   const { authToken, requiresAuth, isCheckingAuth, capabilities, login, logout, totpEnabled } = useAuthContext();
   const { links = [], addLink, updateLink, deleteLink, deleteLinks, updateLinks, setLinksAndSync } = useLinksContext();
   const { categories = [], categoryTree = [], setCategoriesAndSync, unlockedCategoryIds, unlockCategory } = useCategoriesContext();
-  const { ai: aiConfig, icon: iconConfig, viewMode, showPinnedWebsites, ticker, weather, website, webdav, search, setAI, setIcon, setWebsite, setShowPinned, setMastodon, setWeather, setWebDav, setSearch, setViewMode } = useConfigContext();
+  const { ai: aiConfig, icon: iconConfig, viewMode, showPinnedWebsites, ticker, weather, website, webdav, search, setAI, setIcon, setWebsite, setShowPinned, setMastodon, setWeather, setWebDav, setSearch, setViewMode, setSubcategoryLayout } = useConfigContext();
 
   const {
     searchQuery, setSearchQuery, searchResults, isMobileSearchOpen, setIsMobileSearchOpen,
@@ -287,6 +288,43 @@ export function AppLayout() {
     toast.success(`已批量删除 ${selectedLinks.size} 个书签`);
   }, [selectedLinks, links, categories, setLinksAndSync]);
 
+  // 批量移动到指定分类
+  const handleBatchMove = useCallback((targetCategoryId: string) => {
+    if (!targetCategoryId) return;
+    const updated = links.map(l => selectedLinks.has(l.id) ? { ...l, categoryId: targetCategoryId } : l);
+    setLinksAndSync(updated, categories);
+    toast.success(`已将 ${selectedLinks.size} 个链接移动到指定分类`);
+    setSelectedLinks(new Set()); setIsBatchEditMode(false);
+  }, [selectedLinks, links, categories, setLinksAndSync]);
+
+  // 批量置顶 / 取消置顶（若全部已置顶则取消，否则全部置顶）
+  const handleBatchPin = useCallback(() => {
+    const selectedLinkObjs = links.filter(l => selectedLinks.has(l.id));
+    const allPinned = selectedLinkObjs.length > 0 && selectedLinkObjs.every(l => l.pinned);
+    const updated = links.map(l => selectedLinks.has(l.id) ? { ...l, pinned: !allPinned } : l);
+    setLinksAndSync(updated, categories);
+    toast.success(allPinned ? `已取消 ${selectedLinks.size} 个链接的置顶` : `已置顶 ${selectedLinks.size} 个链接`);
+  }, [selectedLinks, links, categories, setLinksAndSync]);
+
+  // 批量复制链接地址到剪贴板
+  const handleBatchCopy = useCallback(() => {
+    const urls = links.filter(l => selectedLinks.has(l.id)).map(l => l.url).join('\n');
+    navigator.clipboard.writeText(urls).then(() => {
+      toast.success(`已复制 ${selectedLinks.size} 个链接地址到剪贴板`);
+    }).catch(() => {
+      toast.error('复制失败，请重试');
+    });
+  }, [selectedLinks, links]);
+
+  // 全选 / 取消全选
+  const handleSelectAll = useCallback(() => {
+    if (selectedLinks.size === links.length && links.length > 0) {
+      setSelectedLinks(new Set());
+    } else {
+      setSelectedLinks(new Set(links.map(l => l.id)));
+    }
+  }, [selectedLinks, links]);
+
   const handleWeightChange = useCallback((linkId: string, weight: number) => {
     const updated = links.map(l => l.id === linkId ? { ...l, weight } : l);
     setLinksAndSync(updated, categories);
@@ -328,7 +366,7 @@ export function AppLayout() {
         {isCatManagerOpen && <CategoryManagerModal isOpen={isCatManagerOpen} onClose={() => setIsCatManagerOpen(false)} categories={categories} links={links} onUpdateCategories={(newCats) => setCategoriesAndSync(newCats, links)} onDeleteCategory={(id) => { const newCats = categories.filter(c => c.id !== id); setCategoriesAndSync(newCats, links); }} onUpdateLinks={(newLinks) => setLinksAndSync(newLinks, categories)} onSaveCategories={(newCats, newLinks) => { updateLinks(newLinks); setCategoriesAndSync(newCats, newLinks); }} />}
         {isBackupModalOpen && <BackupModal isOpen={isBackupModalOpen} onClose={() => setIsBackupModalOpen(false)} links={links} categories={categories} onRestore={(newLinks, newCats) => setLinksAndSync(newLinks, newCats)} webDavConfig={webdav || { url: '', username: '', password: '', enabled: false }} onSaveWebDavConfig={setWebDav} searchConfig={search || { mode: 'internal', externalSources: [] }} onRestoreSearchConfig={setSearch} aiConfig={aiConfig} onRestoreAIConfig={setAI} />}
         {isImportModalOpen && <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} existingLinks={links} categories={categories} onImport={(newLinks, newCats) => setLinksAndSync(newLinks, newCats)} />}
-        {isSettingsModalOpen && <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} authToken={authToken} onSettingsLoaded={(settings) => { setAI(settings.ai); setWebsite({ ...website, passwordExpiry: settings.passwordExpiry }); setMastodon(settings.ticker); setWeather(settings.weather); setShowPinned(settings.showPinnedWebsites); if (settings.defaultViewMode) setViewMode(settings.defaultViewMode); }} onImportClick={() => { setIsSettingsModalOpen(false); setIsImportModalOpen(true); }} onBackupClick={() => { setIsSettingsModalOpen(false); setIsBackupModalOpen(true); }} />}
+        {isSettingsModalOpen && <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} authToken={authToken} onSettingsLoaded={(settings) => { setAI(settings.ai); setWebsite({ ...website, passwordExpiry: settings.passwordExpiry }); setMastodon(settings.ticker); setWeather(settings.weather); setShowPinned(settings.showPinnedWebsites); if (settings.defaultViewMode) setViewMode(settings.defaultViewMode); if (settings.subcategoryLayout) setSubcategoryLayout(settings.subcategoryLayout); }} onImportClick={() => { setIsSettingsModalOpen(false); setIsImportModalOpen(true); }} onBackupClick={() => { setIsSettingsModalOpen(false); setIsBackupModalOpen(true); }} />}
         {isSearchConfigModalOpen && <SearchConfigModal isOpen={isSearchConfigModalOpen} onClose={() => setIsSearchConfigModalOpen(false)} />}
         {contextMenu.isOpen && contextMenu.link && (
           <ContextMenu isOpen={contextMenu.isOpen} position={contextMenu.position} link={contextMenu.link} onClose={() => setContextMenu(prev => ({ ...prev, isOpen: false }))} onCopyLink={() => { navigator.clipboard.writeText(contextMenu.link!.url); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onShowQRCode={(url, title) => { setQrCodeModal({ isOpen: true, url, title }); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onEdit={() => { setEditingLink(contextMenu.link!); setIsModalOpen(true); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onDelete={() => { handleDeleteLink(contextMenu.link!.id); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onTogglePin={() => {
@@ -345,12 +383,51 @@ export function AppLayout() {
         {qrCodeModal.isOpen && <QRCodeModal isOpen={qrCodeModal.isOpen} url={qrCodeModal.url} title={qrCodeModal.title} onClose={() => setQrCodeModal({ isOpen: false, url: '', title: '' })} />}
       </Suspense>
       {catAuthModalData && <CategoryAuthModal isOpen={!!catAuthModalData} category={catAuthModalData} onClose={() => setCatAuthModalData(null)} onUnlock={handleCategoryUnlock} />}
-      {isBatchEditMode && selectedLinks.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-800/95 border-t border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-lg">
-          <span className="text-sm text-slate-600 dark:text-slate-300">已选中 <span className="font-bold text-blue-600 dark:text-blue-400">{selectedLinks.size}</span> 个链接</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setSelectedLinks(new Set()); setIsBatchEditMode(false); }} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">取消</button>
-            <button onClick={handleBatchDelete} className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">删除选中</button>
+      {isBatchEditMode && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-800/95 border-t border-slate-200 dark:border-slate-700 px-4 py-3 shadow-lg">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-slate-600 dark:text-slate-300">
+                {selectedLinks.size > 0 ? <>已选中 <span className="font-bold text-blue-600 dark:text-blue-400">{selectedLinks.size}</span> 个链接</> : '批量编辑模式'}
+              </span>
+              <button onClick={handleSelectAll} disabled={links.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
+                <CheckSquare size={14} />
+                {selectedLinks.size === links.length && links.length > 0 ? '取消全选' : '全选'}
+              </button>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              {selectedLinks.size > 0 && (
+                <>
+                  <select
+                    onChange={(e) => { if (e.target.value) handleBatchMove(e.target.value); }}
+                    value=""
+                    className="px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none"
+                  >
+                    <option value="">移动到分类...</option>
+                    {categoryTree.map(parent => (
+                      <optgroup key={parent.id} label={parent.name}>
+                        <option value={parent.id}>{parent.name}</option>
+                        {parent.children?.map(child => (
+                          <option key={child.id} value={child.id}>  └ {child.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                  <button onClick={handleBatchPin} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                    {links.filter(l => selectedLinks.has(l.id)).every(l => l.pinned) ? <><PinOff size={14} /> 取消置顶</> : <><Pin size={14} /> 置顶</>}
+                  </button>
+                  <button onClick={handleBatchCopy} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                    <Copy size={14} /> 复制链接
+                  </button>
+                  <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
+                    <Trash2 size={14} /> 删除选中
+                  </button>
+                </>
+              )}
+              <button onClick={() => { setSelectedLinks(new Set()); setIsBatchEditMode(false); }} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+                <X size={14} /> 取消
+              </button>
+            </div>
           </div>
         </div>
       )}

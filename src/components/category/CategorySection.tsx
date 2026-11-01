@@ -9,6 +9,7 @@ interface CategorySectionProps {
   links: LinkItem[];
   subcategoryLinks: LinkItem[];
   viewMode: 'compact' | 'detailed';
+  subcategoryLayout?: 'vertical' | 'tab';
   isBatchEditMode: boolean;
   selectedLinks: Set<string>;
   onToggleSelection: (id: string) => void;
@@ -22,7 +23,7 @@ interface CategorySectionProps {
 }
 
 export function CategorySection({
-  category, links, subcategoryLinks, viewMode,
+  category, links, subcategoryLinks, viewMode, subcategoryLayout = 'tab',
   isBatchEditMode, selectedLinks, onToggleSelection,
   onEditLink, onDeleteLink, onContextMenu,
   authToken, isDraggable = false, isEditMode = false, onWeightChange,
@@ -140,8 +141,44 @@ export function CategorySection({
             </SortableContext>
           )}
 
-          {/* Subcategory links - 横向标签页切换 */}
-          {subcategoryTabs.length > 0 && (
+          {/* Subcategory links */}
+          {subcategoryTabs.length > 0 && subcategoryLayout === 'vertical' && (
+            <div className="mt-6 space-y-6">
+              {subcategoryTabs.map(({ child, childLinks }) => (
+                <div key={child.id}>
+                  <h3 id={`cat-${child.id}`} className="text-sm font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-2 mb-3 scroll-mt-20">
+                    <span>{child.name}</span>
+                    <span className="px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-full">
+                      {childLinks.length}
+                    </span>
+                  </h3>
+                  <SortableContext items={childLinks.map(l => l.id)} strategy={rectSortingStrategy}>
+                    <div className={`grid gap-3 ${gridClass}`}>
+                      {childLinks.map(link => (
+                        <LinkCard
+                          key={link.id}
+                          link={link}
+                          viewMode={viewMode}
+                          isBatchEditMode={isBatchEditMode}
+                          isSelected={selectedLinks.has(link.id)}
+                          onToggleSelection={onToggleSelection}
+                          onEdit={onEditLink}
+                          onDelete={onDeleteLink}
+                          onContextMenu={onContextMenu}
+                          authToken={authToken}
+                          isDraggable={isDraggable}
+                          isEditMode={isEditMode}
+                          onWeightChange={onWeightChange}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {subcategoryTabs.length > 0 && subcategoryLayout === 'tab' && (
             <div className="mt-6">
               {/* 标签栏：子分类名横排，点击切换显示对应卡片 */}
               <div className="flex items-center gap-2 mb-4 flex-wrap">
