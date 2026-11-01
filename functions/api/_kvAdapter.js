@@ -189,8 +189,8 @@ export function validateExternalUrl(raw) {
   } catch {
     return { ok: false, error: 'Invalid URL' };
   }
-  if (url.protocol !== 'https:') {
-    return { ok: false, error: 'Only HTTPS URLs are allowed' };
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    return { ok: false, error: 'Only HTTP/HTTPS URLs are allowed' };
   }
   if (isBlockedHost(url.hostname)) {
     return { ok: false, error: 'Private or reserved hosts are not allowed' };
