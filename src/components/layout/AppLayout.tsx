@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
-import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X } from 'lucide-react';
+import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X, ChevronDown } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useLinksContext } from '../../contexts/LinksContext';
 import { useCategoriesContext } from '../../contexts/CategoriesContext';
@@ -59,6 +59,7 @@ export function AppLayout() {
 
   const [isBatchEditMode, setIsBatchEditMode] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
+  const [isMoveDropdownOpen, setIsMoveDropdownOpen] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
@@ -383,54 +384,147 @@ export function AppLayout() {
         {qrCodeModal.isOpen && <QRCodeModal isOpen={qrCodeModal.isOpen} url={qrCodeModal.url} title={qrCodeModal.title} onClose={() => setQrCodeModal({ isOpen: false, url: '', title: '' })} />}
       </Suspense>
       {catAuthModalData && <CategoryAuthModal isOpen={!!catAuthModalData} category={catAuthModalData} onClose={() => setCatAuthModalData(null)} onUnlock={handleCategoryUnlock} />}
-      {isBatchEditMode && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-800/95 border-t border-slate-200 dark:border-slate-700 px-4 py-3 shadow-lg">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-slate-600 dark:text-slate-300">
-                {selectedLinks.size > 0 ? <>已选中 <span className="font-bold text-blue-600 dark:text-blue-400">{selectedLinks.size}</span> 个链接</> : '批量编辑模式'}
-              </span>
-              <button onClick={handleSelectAll} disabled={links.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                <CheckSquare size={14} />
-                {selectedLinks.size === links.length && links.length > 0 ? '取消全选' : '全选'}
-              </button>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {selectedLinks.size > 0 && (
+      {isBatchEditMode && (() => {
+        const allPinned = selectedLinks.size > 0 && links.filter(l => selectedLinks.has(l.id)).every(l => l.pinned);
+        const isAllSelected = selectedLinks.size === links.length && links.length > 0;
+        const cancelBatch = () => { setSelectedLinks(new Set()); setIsBatchEditMode(false); };
+        const hasSelection = selectedLinks.size > 0;
+        return (
+        <>
+          {/* ===== 移动端布局 ===== */}
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+            <div className="flex flex-col gap-2 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-t-2xl border-t border-slate-200/60 dark:border-slate-700/60 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
+              {/* 第一行：计数 + 全选 + 置顶 + 取消 */}
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${hasSelection ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300' : 'bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500'}`}>
+                  {hasSelection ? (
+                    <><span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-blue-500 text-white text-xs font-bold">{selectedLinks.size}</span> 已选中</>
+                  ) : (
+                    <><CheckSquare size={16} /> 批量编辑</>
+                  )}
+                </div>
+                <button onClick={handleSelectAll} disabled={links.length === 0} className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+                  <CheckSquare size={16} /> {isAllSelected ? '取消全选' : '全选'}
+                </button>
+                {hasSelection && (
+                  <button onClick={handleBatchPin} className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800/50 transition-all active:scale-95 whitespace-nowrap">
+                    {allPinned ? <PinOff size={16} /> : <Pin size={16} />} {allPinned ? '取消置顶' : '置顶'}
+                  </button>
+                )}
+                <button onClick={cancelBatch} className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
+                  <X size={16} /> 取消
+                </button>
+              </div>
+              {/* 选中后：移动分类（全宽）+ 复制/删除（两列） */}
+              {hasSelection && (
                 <>
-                  <select
-                    onChange={(e) => { if (e.target.value) handleBatchMove(e.target.value); }}
-                    value=""
-                    className="px-3 py-2 text-sm rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 cursor-pointer focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    <option value="">移动到分类...</option>
-                    {categoryTree.map(parent => (
-                      <optgroup key={parent.id} label={parent.name}>
-                        <option value={parent.id}>{parent.name}</option>
-                        {parent.children?.map(child => (
-                          <option key={child.id} value={child.id}>  └ {child.name}</option>
-                        ))}
-                      </optgroup>
-                    ))}
-                  </select>
-                  <button onClick={handleBatchPin} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                    {links.filter(l => selectedLinks.has(l.id)).every(l => l.pinned) ? <><PinOff size={14} /> 取消置顶</> : <><Pin size={14} /> 置顶</>}
+                  <div className="h-px bg-slate-200 dark:bg-slate-700" />
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMoveDropdownOpen(!isMoveDropdownOpen)}
+                      className="relative w-full flex items-center justify-center py-2.5 text-sm font-medium rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 focus:ring-2 focus:ring-indigo-400/40 outline-none transition-all active:scale-95 whitespace-nowrap"
+                    >
+                      <FolderInput size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 dark:text-indigo-400 pointer-events-none" />
+                      <span>移动分类</span>
+                      <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${isMoveDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isMoveDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0" onClick={() => setIsMoveDropdownOpen(false)} />
+                        <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl">
+                          {categoryTree.map(parent => (
+                            <div key={parent.id} className="mb-1 last:mb-0">
+                              <div className="px-2 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">{parent.name}</div>
+                              <button onClick={() => { handleBatchMove(parent.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center px-3 py-2 text-sm rounded-lg text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors">
+                                {parent.name}
+                              </button>
+                              {parent.children?.map(child => (
+                                <button key={child.id} onClick={() => { handleBatchMove(child.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center pl-6 pr-3 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors">
+                                  └ {child.name}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button onClick={handleBatchCopy} className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50 transition-all active:scale-95 whitespace-nowrap">
+                      <Copy size={16} /> 复制链接
+                    </button>
+                    <button onClick={handleBatchDelete} className="flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white shadow-sm shadow-red-500/30 transition-all active:scale-95 whitespace-nowrap">
+                      <Trash2 size={16} /> 删除选中
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          {/* ===== PC 端布局 ===== */}
+          <div className="hidden lg:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap ${hasSelection ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300' : 'bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500'}`}>
+                {hasSelection ? (
+                  <><span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-blue-500 text-white text-xs font-bold">{selectedLinks.size}</span> 已选中</>
+                ) : (
+                  <><CheckSquare size={16} /> 批量编辑</>
+                )}
+              </div>
+              <button onClick={handleSelectAll} disabled={links.length === 0} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700">
+                <CheckSquare size={16} /> {isAllSelected ? '取消全选' : '全选'}
+              </button>
+              {hasSelection && (
+                <>
+                  <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
+                  <button onClick={handleBatchPin} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800/50 transition-all active:scale-95 whitespace-nowrap">
+                    {allPinned ? <PinOff size={16} /> : <Pin size={16} />} {allPinned ? '取消置顶' : '置顶'}
                   </button>
-                  <button onClick={handleBatchCopy} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                    <Copy size={14} /> 复制链接
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMoveDropdownOpen(!isMoveDropdownOpen)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 focus:ring-2 focus:ring-indigo-400/40 outline-none transition-all active:scale-95 whitespace-nowrap"
+                    >
+                      <FolderInput size={16} /> 移动分类 <ChevronDown size={14} className={`transition-transform ${isMoveDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isMoveDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0" onClick={() => setIsMoveDropdownOpen(false)} />
+                        <div className="absolute bottom-full left-0 min-w-48 mb-2 max-h-60 overflow-y-auto p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl">
+                          {categoryTree.map(parent => (
+                            <div key={parent.id} className="mb-1 last:mb-0">
+                              <div className="px-2 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">{parent.name}</div>
+                              <button onClick={() => { handleBatchMove(parent.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center px-3 py-2 text-sm rounded-lg text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors whitespace-nowrap">
+                                {parent.name}
+                              </button>
+                              {parent.children?.map(child => (
+                                <button key={child.id} onClick={() => { handleBatchMove(child.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center pl-6 pr-3 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors whitespace-nowrap">
+                                  └ {child.name}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button onClick={handleBatchCopy} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50 transition-all active:scale-95 whitespace-nowrap">
+                    <Copy size={16} /> 复制链接
                   </button>
-                  <button onClick={handleBatchDelete} className="flex items-center gap-1.5 px-3 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">
-                    <Trash2 size={14} /> 删除选中
+                  <button onClick={handleBatchDelete} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white shadow-sm shadow-red-500/30 transition-all active:scale-95 whitespace-nowrap">
+                    <Trash2 size={16} /> 删除选中
                   </button>
                 </>
               )}
-              <button onClick={() => { setSelectedLinks(new Set()); setIsBatchEditMode(false); }} className="flex items-center gap-1.5 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
-                <X size={14} /> 取消
+              {hasSelection && <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />}
+              <button onClick={cancelBatch} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-all active:scale-95 whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
+                <X size={16} /> 取消
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </>
+        );
+      })()}
     </div>
   );
 }
