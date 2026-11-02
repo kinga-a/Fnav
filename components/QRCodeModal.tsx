@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Download } from 'lucide-react';
+import QRCode from 'qrcode';
 
 interface QRCodeModalProps {
   isOpen: boolean;
@@ -14,17 +15,35 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
   url,
   title
 }) => {
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+
+  useEffect(() => {
+    if (!isOpen || !url) {
+      setQrDataUrl('');
+      return;
+    }
+
+    QRCode.toDataURL(url, {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#ffffff'
+      }
+    })
+      .then(setQrDataUrl)
+      .catch((err) => {
+        console.error('QR code generation failed:', err);
+        setQrDataUrl('');
+      });
+  }, [isOpen, url]);
+
   if (!isOpen) return null;
 
-  const generateQRCode = () => {
-    // 使用第三方QR码生成服务
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
-    return qrCodeUrl;
-  };
-
   const downloadQRCode = () => {
+    if (!qrDataUrl) return;
     const link = document.createElement('a');
-    link.href = generateQRCode();
+    link.href = qrDataUrl;
     link.download = `${title.replace(/[^a-zA-Z0-9]/g, '_')}_qrcode.png`;
     link.click();
   };
@@ -57,18 +76,25 @@ const QRCodeModal: React.FC<QRCodeModalProps> = ({
 
         {/* QR码 */}
         <div className="flex justify-center mb-4">
-          <img
-            src={generateQRCode()}
-            alt={`${title}的二维码`}
-            className="w-48 h-48 border-4 border-white dark:border-slate-700 rounded-lg"
-          />
+          {qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt={`${title}的二维码`}
+              className="w-48 h-48 border-4 border-white dark:border-slate-700 rounded-lg"
+            />
+          ) : (
+            <div className="w-48 h-48 border-4 border-white dark:border-slate-700 rounded-lg flex items-center justify-center text-slate-400">
+              生成中...
+            </div>
+          )}
         </div>
 
         {/* 操作按钮 */}
         <div className="flex gap-2">
           <button
             onClick={downloadQRCode}
-            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            disabled={!qrDataUrl}
+            className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download size={16} />
             下载二维码

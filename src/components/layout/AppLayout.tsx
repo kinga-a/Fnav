@@ -13,7 +13,6 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
 import { LinkItem, Category } from '../../../types';
-import { generateLinkDescription } from '../../../services/geminiService';
 import AuthModal from '../../../components/AuthModal';
 
 const LinkModal = lazy(() => import('../../../components/LinkModal'));
@@ -355,6 +354,7 @@ export function AppLayout() {
 
     for (const link of selectedLinkObjs) {
       try {
+        const { generateLinkDescription } = await import('../../../services/geminiService');
         const desc = await generateLinkDescription(link.title, link.url, aiConfig);
         if (desc && desc !== '生成描述失败' && desc !== '请在设置中配置 API Key') {
           const idx = updatedLinks.findIndex(l => l.id === link.id);
