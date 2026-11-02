@@ -236,7 +236,7 @@ function LinkCardInner({
 
       {/* Link content */}
       <div className={`icon-main flex flex-1 min-w-0 overflow-hidden h-full w-full ${
-        isDetailedView ? 'items-center' : 'flex flex-col items-center justify-center gap-1 text-center'
+        isDetailedView ? 'items-center' : 'flex flex-col items-center justify-center gap-2 text-center'
       }`}>
         {isDetailedView ? (
           <>

@@ -75,6 +75,24 @@ export function AppLayout() {
 
   const [pendingDragLinks, setPendingDragLinks] = useState<{ links: LinkItem[]; categories: Category[] } | null>(null);
 
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    resolve: (value: boolean) => void;
+  } | null>(null);
+
+  const showConfirm = useCallback((message: string): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      setConfirmDialog({ message, resolve });
+    });
+  }, []);
+
+  const handleConfirmResult = useCallback((result: boolean) => {
+    setConfirmDialog(prev => {
+      prev?.resolve(result);
+      return null;
+    });
+  }, []);
+
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const dragState = useRef({
@@ -211,8 +229,8 @@ export function AppLayout() {
     setEditingLink(link); setPrefillLink(undefined); setIsModalOpen(true);
   }, []);
 
-  const handleDeleteLink = useCallback((id: string) => {
-    if (!confirm('确定删除此链接吗？')) return;
+  const handleDeleteLink = useCallback(async (id: string) => {
+    if (!await showConfirm('确定删除此链接吗？')) return;
     const linkToDelete = links.find(l => l.id === id);
     if (linkToDelete) {
       // Cleanup icon storage...
@@ -231,7 +249,7 @@ export function AppLayout() {
     const newLinks = links.filter(l => l.id !== id);
     setLinksAndSync(newLinks, categories);
     toast.success(`「${deletedTitle}」删除成功`);
-  }, [links, categories, setLinksAndSync, authToken]);
+  }, [links, categories, setLinksAndSync, authToken, showConfirm]);
 
   const toggleLinkSelection = useCallback((id: string) => {
     setSelectedLinks(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -283,13 +301,13 @@ export function AppLayout() {
     setContextMenu({ isOpen: true, position: { x: e.clientX, y: e.clientY }, link });
   }, [isBatchEditMode, authToken]);
 
-  const handleBatchDelete = useCallback(() => {
-    if (!confirm(`确定删除选中的 ${selectedLinks.size} 个链接吗？`)) return;
+  const handleBatchDelete = useCallback(async () => {
+    if (!await showConfirm(`确定删除选中的 ${selectedLinks.size} 个链接吗？`)) return;
     const newLinks = links.filter(l => !selectedLinks.has(l.id));
     setLinksAndSync(newLinks, categories);
     setSelectedLinks(new Set()); setIsBatchEditMode(false);
     toast.success(`已批量删除 ${selectedLinks.size} 个书签`);
-  }, [selectedLinks, links, categories, setLinksAndSync]);
+  }, [selectedLinks, links, categories, setLinksAndSync, showConfirm]);
 
   // 批量移动到指定分类
   const handleBatchMove = useCallback((targetCategoryId: string) => {
@@ -392,9 +410,32 @@ export function AppLayout() {
 
   if (isInitialLoading) {
     return (
-      <div className="flex h-[100dvh] bg-slate-50 dark:bg-slate-900 flex-col items-center justify-center gap-4 text-slate-900 dark:text-slate-50">
-        <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-blue-500 rounded-full animate-spin" />
-        <div className="text-lg font-bold tracking-wider text-slate-700 dark:text-slate-300">Nav</div>
+      <div className="loader-fade-in flex h-[100dvh] bg-slate-50 dark:bg-slate-900 flex-col items-center justify-center gap-6 text-slate-900 dark:text-slate-50">
+        {/* 渐变光环 + 脉冲波纹 */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="loader-pulse-ring absolute inset-0 rounded-full border-2 border-blue-400/30" />
+          <div className="loader-pulse-ring absolute inset-0 rounded-full border-2 border-purple-400/30" style={{ animationDelay: '0.6s' }} />
+          <div
+            className="loader-ring w-12 h-12 rounded-full"
+            style={{
+              background: 'conic-gradient(from 0deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)',
+              mask: 'radial-gradient(farthest-side, transparent 58%, black 60%)',
+              WebkitMask: 'radial-gradient(farthest-side, transparent 58%, black 60%)',
+            }}
+          />
+        </div>
+
+        {/* 渐变文字 + 弹跳圆点 */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="loader-text text-2xl font-bold tracking-wider">
+            F-Nav
+          </div>
+          <div className="flex gap-1.5">
+            <div className="loader-dot w-2 h-2 rounded-full bg-blue-500" />
+            <div className="loader-dot w-2 h-2 rounded-full bg-purple-500" style={{ animationDelay: '0.16s' }} />
+            <div className="loader-dot w-2 h-2 rounded-full bg-pink-500" style={{ animationDelay: '0.32s' }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -576,6 +617,40 @@ export function AppLayout() {
         </>
         );
       })()}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => handleConfirmResult(false)}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl p-6 animate-in zoom-in-95 slide-in-from-bottom-4 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 size={20} className="text-red-600 dark:text-red-400" />
+              </div>
+              <p className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 pt-2">
+                {confirmDialog.message}
+              </p>
+            </div>
+            <div className="mt-5 flex gap-3 justify-end">
+              <button
+                onClick={() => handleConfirmResult(false)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleConfirmResult(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white shadow-sm transition-colors"
+              >
+                确认删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

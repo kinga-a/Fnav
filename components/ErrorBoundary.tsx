@@ -29,23 +29,23 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', color: '#dc2626', border: '1px solid #fca5a5', margin: '20px', backgroundColor: '#fef2f2', borderRadius: '8px', zIndex: 9999, position: 'relative' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '12px' }}>页面加载出错</h2>
-          <details style={{ whiteSpace: 'pre-wrap', fontSize: '13px', color: '#6b7280' }}>
+        <div className="p-5 m-5 rounded-xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 relative z-[9999]">
+          <h2 className="text-lg font-bold mb-3">页面加载出错</h2>
+          <details className="text-[13px] text-slate-500 dark:text-slate-400 whitespace-pre-wrap">
             {this.state.error && this.state.error.toString()}
             <br />
             {this.state.errorInfo && this.state.errorInfo.componentStack}
           </details>
-          <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
+          <div className="mt-4 flex gap-2">
             <button
               onClick={() => this.setState({ hasError: false })}
-              style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', fontSize: '14px' }}
+              className="px-4 py-2 cursor-pointer bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors"
             >
               重试
             </button>
             <button
               onClick={() => window.location.reload()}
-              style={{ padding: '8px 16px', cursor: 'pointer', backgroundColor: '#e5e7eb', color: '#374151', border: 'none', borderRadius: '6px', fontSize: '14px' }}
+              className="px-4 py-2 cursor-pointer bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded-md text-sm transition-colors"
             >
               刷新页面
             </button>

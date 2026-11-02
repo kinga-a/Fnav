@@ -49,6 +49,9 @@ export default defineConfig(({ mode }) => {
               if (id.includes('node_modules/@dnd-kit/')) {
                 return 'dnd';
               }
+              if (id.includes('node_modules/@google/genai')) {
+                return 'genai';
+              }
             },
             chunkFileNames: 'assets/[name]-[hash].js',
             entryFileNames: 'assets/[name]-[hash].js',

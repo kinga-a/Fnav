@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { TickerConfig } from '../types';
+import { sanitizeInlineHtml } from '../src/utils/security';
 
 const MastodonIcon = ({ size, className }: { size: number; className?: string }) => (
   <svg width={size} height={size * 1.053} viewBox="0 0 75 79" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -156,9 +157,9 @@ const MastodonTicker: React.FC<TickerProps> = ({ config, isCollapsed }) => {
                 onClick={() => item.url && window.open(item.url, '_blank')}
                 title={item.content.replace(/<[^>]*>/g, '')}
               >
-                <span 
+                <span
                   className="text-xs text-slate-700 dark:text-slate-300 truncate w-full"
-                  dangerouslySetInnerHTML={{ __html: item.content }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(item.content) }}
                 />
               </div>
             </div>
@@ -169,9 +170,9 @@ const MastodonTicker: React.FC<TickerProps> = ({ config, isCollapsed }) => {
               onClick={() => items[0]?.url && window.open(items[0].url, '_blank')}
               title={items[0]?.content.replace(/<[^>]*>/g, '')}
             >
-              <span 
+              <span
                 className="text-xs text-slate-700 dark:text-slate-300 truncate w-full"
-                dangerouslySetInnerHTML={{ __html: items[0]?.content || '' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeInlineHtml(items[0]?.content || '') }}
               />
             </div>
           </div>
