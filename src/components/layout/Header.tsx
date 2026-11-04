@@ -9,15 +9,16 @@ import WeatherDisplay from '../../../components/WeatherDisplay';
 import { useState, useRef, useEffect } from 'react';
 import { SEARCH_ENGINES } from '../../constants';
 
-import { 
-  GoogleLogo, 
-  BingLogo, 
-  BaiduLogo, 
-  DuckDuckGoLogo, 
-  GithubLogo, 
-  YandexLogo, 
-  QihooLogo 
+import {
+  GoogleLogo,
+  BingLogo,
+  BaiduLogo,
+  DuckDuckGoLogo,
+  GithubLogo,
+  YandexLogo,
+  QihooLogo
 } from '../icons/SearchLogos';
+import { sanitizeSvg } from '../../utils/security';
 
 // Search Engine Icons Mapping
 const ENGINE_LOGOS: Record<string, React.FC<React.SVGProps<SVGSVGElement>>> = {
@@ -130,9 +131,9 @@ function RenderEngineLogo({
   if (engine === 'custom' && customIcon) {
     if (customIcon.trim().startsWith('<svg')) {
       return (
-        <div 
+        <div
           className={combinedClass}
-          dangerouslySetInnerHTML={{ __html: customIcon }}
+          dangerouslySetInnerHTML={{ __html: sanitizeSvg(customIcon) }}
           style={{ width: '16px', height: '16px' }}
         />
       );

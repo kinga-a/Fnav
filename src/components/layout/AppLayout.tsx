@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
+import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useLinksContext } from '../../contexts/LinksContext';
 import { useCategoriesContext } from '../../contexts/CategoriesContext';
@@ -28,7 +29,7 @@ export function AppLayout() {
   const { authToken, requiresAuth, isCheckingAuth, capabilities, login, logout, totpEnabled } = useAuthContext();
   const { links = [], addLink, updateLink, deleteLink, deleteLinks, updateLinks, setLinksAndSync } = useLinksContext();
   const { categories = [], categoryTree = [], setCategoriesAndSync, unlockedCategoryIds, unlockCategory } = useCategoriesContext();
-  const { ai: aiConfig, icon: iconConfig, viewMode, showPinnedWebsites, ticker, weather, website, webdav, search, setAI, setIcon, setWebsite, setShowPinned, setMastodon, setWeather, setWebDav, setSearch, setViewMode } = useConfigContext();
+  const { ai: aiConfig, icon: iconConfig, viewMode, showPinnedWebsites, ticker, weather, website, webdav, search, setAI, setIcon, setWebsite, setShowPinned, setMastodon, setWeather, setWebDav, setSearch, setViewMode, setSubcategoryLayout } = useConfigContext();
 
   const {
     searchQuery, setSearchQuery, searchResults, isMobileSearchOpen, setIsMobileSearchOpen,
@@ -58,6 +59,8 @@ export function AppLayout() {
 
   const [isBatchEditMode, setIsBatchEditMode] = useState(false);
   const [selectedLinks, setSelectedLinks] = useState<Set<string>>(new Set());
+  const [isMoveDropdownOpen, setIsMoveDropdownOpen] = useState(false);
+  const [isBatchAIGenerating, setIsBatchAIGenerating] = useState(false);
 
   const [contextMenu, setContextMenu] = useState<{
     isOpen: boolean;
@@ -70,6 +73,24 @@ export function AppLayout() {
   }>({ isOpen: false, url: '', title: '' });
 
   const [pendingDragLinks, setPendingDragLinks] = useState<{ links: LinkItem[]; categories: Category[] } | null>(null);
+
+  const [confirmDialog, setConfirmDialog] = useState<{
+    message: string;
+    resolve: (value: boolean) => void;
+  } | null>(null);
+
+  const showConfirm = useCallback((message: string): Promise<boolean> => {
+    return new Promise<boolean>((resolve) => {
+      setConfirmDialog({ message, resolve });
+    });
+  }, []);
+
+  const handleConfirmResult = useCallback((result: boolean) => {
+    setConfirmDialog(prev => {
+      prev?.resolve(result);
+      return null;
+    });
+  }, []);
 
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -207,8 +228,8 @@ export function AppLayout() {
     setEditingLink(link); setPrefillLink(undefined); setIsModalOpen(true);
   }, []);
 
-  const handleDeleteLink = useCallback((id: string) => {
-    if (!confirm('确定删除此链接吗？')) return;
+  const handleDeleteLink = useCallback(async (id: string) => {
+    if (!await showConfirm('确定删除此链接吗？')) return;
     const linkToDelete = links.find(l => l.id === id);
     if (linkToDelete) {
       // Cleanup icon storage...
@@ -227,7 +248,7 @@ export function AppLayout() {
     const newLinks = links.filter(l => l.id !== id);
     setLinksAndSync(newLinks, categories);
     toast.success(`「${deletedTitle}」删除成功`);
-  }, [links, categories, setLinksAndSync, authToken]);
+  }, [links, categories, setLinksAndSync, authToken, showConfirm]);
 
   const toggleLinkSelection = useCallback((id: string) => {
     setSelectedLinks(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -279,13 +300,94 @@ export function AppLayout() {
     setContextMenu({ isOpen: true, position: { x: e.clientX, y: e.clientY }, link });
   }, [isBatchEditMode, authToken]);
 
-  const handleBatchDelete = useCallback(() => {
-    if (!confirm(`确定删除选中的 ${selectedLinks.size} 个链接吗？`)) return;
+  const handleBatchDelete = useCallback(async () => {
+    if (!await showConfirm(`确定删除选中的 ${selectedLinks.size} 个链接吗？`)) return;
     const newLinks = links.filter(l => !selectedLinks.has(l.id));
     setLinksAndSync(newLinks, categories);
     setSelectedLinks(new Set()); setIsBatchEditMode(false);
     toast.success(`已批量删除 ${selectedLinks.size} 个书签`);
+  }, [selectedLinks, links, categories, setLinksAndSync, showConfirm]);
+
+  // 批量移动到指定分类
+  const handleBatchMove = useCallback((targetCategoryId: string) => {
+    if (!targetCategoryId) return;
+    const updated = links.map(l => selectedLinks.has(l.id) ? { ...l, categoryId: targetCategoryId } : l);
+    setLinksAndSync(updated, categories);
+    toast.success(`已将 ${selectedLinks.size} 个链接移动到指定分类`);
+    setSelectedLinks(new Set()); setIsBatchEditMode(false);
   }, [selectedLinks, links, categories, setLinksAndSync]);
+
+  // 批量置顶 / 取消置顶（若全部已置顶则取消，否则全部置顶）
+  const handleBatchPin = useCallback(() => {
+    const selectedLinkObjs = links.filter(l => selectedLinks.has(l.id));
+    const allPinned = selectedLinkObjs.length > 0 && selectedLinkObjs.every(l => l.pinned);
+    const updated = links.map(l => selectedLinks.has(l.id) ? { ...l, pinned: !allPinned } : l);
+    setLinksAndSync(updated, categories);
+    toast.success(allPinned ? `已取消 ${selectedLinks.size} 个链接的置顶` : `已置顶 ${selectedLinks.size} 个链接`);
+  }, [selectedLinks, links, categories, setLinksAndSync]);
+
+  // 批量复制链接地址到剪贴板
+  const handleBatchCopy = useCallback(() => {
+    const urls = links.filter(l => selectedLinks.has(l.id)).map(l => l.url).join('\n');
+    navigator.clipboard.writeText(urls).then(() => {
+      toast.success(`已复制 ${selectedLinks.size} 个链接地址到剪贴板`);
+    }).catch(() => {
+      toast.error('复制失败，请重试');
+    });
+  }, [selectedLinks, links]);
+
+  // 批量 AI 描述生成：为选中链接逐个生成描述并保存
+  const handleBatchAIDescription = useCallback(async () => {
+    if (!aiConfig?.apiKey) {
+      toast.warning('请先在设置中配置 AI API Key');
+      return;
+    }
+    const selectedLinkObjs = links.filter(l => selectedLinks.has(l.id));
+    if (selectedLinkObjs.length === 0) return;
+
+    setIsBatchAIGenerating(true);
+    toast.info(`正在为 ${selectedLinkObjs.length} 个链接生成 AI 描述…`);
+
+    let successCount = 0;
+    let failCount = 0;
+    const updatedLinks = [...links];
+
+    for (const link of selectedLinkObjs) {
+      try {
+        const { generateLinkDescription } = await import('../../../services/geminiService');
+        const desc = await generateLinkDescription(link.title, link.url, aiConfig);
+        if (desc && desc !== '生成描述失败' && desc !== '请在设置中配置 API Key') {
+          const idx = updatedLinks.findIndex(l => l.id === link.id);
+          if (idx !== -1) {
+            updatedLinks[idx] = { ...updatedLinks[idx], description: desc };
+            successCount++;
+          }
+        } else {
+          failCount++;
+        }
+      } catch {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      setLinksAndSync(updatedLinks, categories);
+      toast.success(`AI 描述生成完成：成功 ${successCount} 个${failCount > 0 ? `，失败 ${failCount} 个` : ''}`);
+    } else {
+      toast.error('AI 描述生成失败，请检查 API 配置');
+    }
+
+    setIsBatchAIGenerating(false);
+  }, [selectedLinks, links, categories, aiConfig, setLinksAndSync]);
+
+  // 全选 / 取消全选
+  const handleSelectAll = useCallback(() => {
+    if (selectedLinks.size === links.length && links.length > 0) {
+      setSelectedLinks(new Set());
+    } else {
+      setSelectedLinks(new Set(links.map(l => l.id)));
+    }
+  }, [selectedLinks, links]);
 
   const handleWeightChange = useCallback((linkId: string, weight: number) => {
     const updated = links.map(l => l.id === linkId ? { ...l, weight } : l);
@@ -308,9 +410,32 @@ export function AppLayout() {
 
   if (isInitialLoading) {
     return (
-      <div className="flex h-[100dvh] bg-slate-50 dark:bg-slate-900 flex-col items-center justify-center gap-4 text-slate-900 dark:text-slate-50">
-        <div className="w-10 h-10 border-4 border-slate-200 dark:border-slate-700 border-t-blue-500 rounded-full animate-spin" />
-        <div className="text-lg font-bold tracking-wider text-slate-700 dark:text-slate-300">Nav</div>
+      <div className="loader-fade-in flex h-[100dvh] bg-slate-50 dark:bg-slate-900 flex-col items-center justify-center gap-6 text-slate-900 dark:text-slate-50">
+        {/* 渐变光环 + 脉冲波纹 */}
+        <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="loader-pulse-ring absolute inset-0 rounded-full border-2 border-blue-400/30" />
+          <div className="loader-pulse-ring absolute inset-0 rounded-full border-2 border-purple-400/30" style={{ animationDelay: '0.6s' }} />
+          <div
+            className="loader-ring w-12 h-12 rounded-full"
+            style={{
+              background: 'conic-gradient(from 0deg, #3b82f6, #8b5cf6, #ec4899, #3b82f6)',
+              mask: 'radial-gradient(farthest-side, transparent 58%, black 60%)',
+              WebkitMask: 'radial-gradient(farthest-side, transparent 58%, black 60%)',
+            }}
+          />
+        </div>
+
+        {/* 渐变文字 + 弹跳圆点 */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="loader-text text-2xl font-bold tracking-wider">
+            F-Nav
+          </div>
+          <div className="flex gap-1.5">
+            <div className="loader-dot w-2 h-2 rounded-full bg-blue-500" />
+            <div className="loader-dot w-2 h-2 rounded-full bg-purple-500" style={{ animationDelay: '0.16s' }} />
+            <div className="loader-dot w-2 h-2 rounded-full bg-pink-500" style={{ animationDelay: '0.32s' }} />
+          </div>
+        </div>
       </div>
     );
   }
@@ -328,7 +453,7 @@ export function AppLayout() {
         {isCatManagerOpen && <CategoryManagerModal isOpen={isCatManagerOpen} onClose={() => setIsCatManagerOpen(false)} categories={categories} links={links} onUpdateCategories={(newCats) => setCategoriesAndSync(newCats, links)} onDeleteCategory={(id) => { const newCats = categories.filter(c => c.id !== id); setCategoriesAndSync(newCats, links); }} onUpdateLinks={(newLinks) => setLinksAndSync(newLinks, categories)} onSaveCategories={(newCats, newLinks) => { updateLinks(newLinks); setCategoriesAndSync(newCats, newLinks); }} />}
         {isBackupModalOpen && <BackupModal isOpen={isBackupModalOpen} onClose={() => setIsBackupModalOpen(false)} links={links} categories={categories} onRestore={(newLinks, newCats) => setLinksAndSync(newLinks, newCats)} webDavConfig={webdav || { url: '', username: '', password: '', enabled: false }} onSaveWebDavConfig={setWebDav} searchConfig={search || { mode: 'internal', externalSources: [] }} onRestoreSearchConfig={setSearch} aiConfig={aiConfig} onRestoreAIConfig={setAI} />}
         {isImportModalOpen && <ImportModal isOpen={isImportModalOpen} onClose={() => setIsImportModalOpen(false)} existingLinks={links} categories={categories} onImport={(newLinks, newCats) => setLinksAndSync(newLinks, newCats)} />}
-        {isSettingsModalOpen && <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} authToken={authToken} onSettingsLoaded={(settings) => { setAI(settings.ai); setWebsite({ ...website, passwordExpiry: settings.passwordExpiry }); setMastodon(settings.ticker); setWeather(settings.weather); setShowPinned(settings.showPinnedWebsites); if (settings.defaultViewMode) setViewMode(settings.defaultViewMode); }} onImportClick={() => { setIsSettingsModalOpen(false); setIsImportModalOpen(true); }} onBackupClick={() => { setIsSettingsModalOpen(false); setIsBackupModalOpen(true); }} />}
+        {isSettingsModalOpen && <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} authToken={authToken} onSettingsLoaded={(settings) => { setAI(settings.ai); setWebsite({ ...website, passwordExpiry: settings.passwordExpiry }); setMastodon(settings.ticker); setWeather(settings.weather); setShowPinned(settings.showPinnedWebsites); if (settings.defaultViewMode) setViewMode(settings.defaultViewMode); if (settings.subcategoryLayout) setSubcategoryLayout(settings.subcategoryLayout); }} onImportClick={() => { setIsSettingsModalOpen(false); setIsImportModalOpen(true); }} onBackupClick={() => { setIsSettingsModalOpen(false); setIsBackupModalOpen(true); }} />}
         {isSearchConfigModalOpen && <SearchConfigModal isOpen={isSearchConfigModalOpen} onClose={() => setIsSearchConfigModalOpen(false)} />}
         {contextMenu.isOpen && contextMenu.link && (
           <ContextMenu isOpen={contextMenu.isOpen} position={contextMenu.position} link={contextMenu.link} onClose={() => setContextMenu(prev => ({ ...prev, isOpen: false }))} onCopyLink={() => { navigator.clipboard.writeText(contextMenu.link!.url); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onShowQRCode={(url, title) => { setQrCodeModal({ isOpen: true, url, title }); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onEdit={() => { setEditingLink(contextMenu.link!); setIsModalOpen(true); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onDelete={() => { handleDeleteLink(contextMenu.link!.id); setContextMenu(prev => ({ ...prev, isOpen: false })); }} onTogglePin={() => {
@@ -345,12 +470,184 @@ export function AppLayout() {
         {qrCodeModal.isOpen && <QRCodeModal isOpen={qrCodeModal.isOpen} url={qrCodeModal.url} title={qrCodeModal.title} onClose={() => setQrCodeModal({ isOpen: false, url: '', title: '' })} />}
       </Suspense>
       {catAuthModalData && <CategoryAuthModal isOpen={!!catAuthModalData} category={catAuthModalData} onClose={() => setCatAuthModalData(null)} onUnlock={handleCategoryUnlock} />}
-      {isBatchEditMode && selectedLinks.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-800/95 border-t border-slate-200 dark:border-slate-700 px-4 py-3 flex items-center justify-between shadow-lg">
-          <span className="text-sm text-slate-600 dark:text-slate-300">已选中 <span className="font-bold text-blue-600 dark:text-blue-400">{selectedLinks.size}</span> 个链接</span>
-          <div className="flex items-center gap-2">
-            <button onClick={() => { setSelectedLinks(new Set()); setIsBatchEditMode(false); }} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">取消</button>
-            <button onClick={handleBatchDelete} className="px-4 py-2 text-sm bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors">删除选中</button>
+      {isBatchEditMode && (() => {
+        const allPinned = selectedLinks.size > 0 && links.filter(l => selectedLinks.has(l.id)).every(l => l.pinned);
+        const isAllSelected = selectedLinks.size === links.length && links.length > 0;
+        const cancelBatch = () => { setSelectedLinks(new Set()); setIsBatchEditMode(false); };
+        const hasSelection = selectedLinks.size > 0;
+        return (
+        <>
+          {/* ===== 移动端布局 ===== */}
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50">
+            <div className="flex flex-col gap-2 px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-t-2xl border-t border-slate-200/60 dark:border-slate-700/60 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_-4px_24px_rgba(0,0,0,0.3)]">
+              {/* 第一行：计数 + 全选 + 置顶 + 取消 */}
+              <div className="flex items-center justify-center gap-2 flex-wrap">
+                <div className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium whitespace-nowrap ${hasSelection ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300' : 'bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500'}`}>
+                  {hasSelection ? (
+                    <><span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-blue-500 text-white text-xs font-bold">{selectedLinks.size}</span> 已选中</>
+                  ) : (
+                    <><CheckSquare size={16} /> 批量编辑</>
+                  )}
+                </div>
+                <button onClick={handleSelectAll} disabled={links.length === 0} className={`flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${isAllSelected ? 'bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                  <CheckSquare size={16} /> {isAllSelected ? '取消全选' : '全选'}
+                </button>
+                {hasSelection && (
+                  <button onClick={handleBatchPin} className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800/50 transition-all active:scale-95 whitespace-nowrap">
+                    {allPinned ? <PinOff size={16} /> : <Pin size={16} />} {allPinned ? '取消置顶' : '置顶'}
+                  </button>
+                )}
+                <button onClick={cancelBatch} className="flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
+                  <X size={16} /> 取消
+                </button>
+              </div>
+              {/* 选中后：移动分类（全宽）+ 复制/删除（两列） */}
+              {hasSelection && (
+                <>
+                  <div className="h-px bg-slate-200 dark:bg-slate-700" />
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMoveDropdownOpen(!isMoveDropdownOpen)}
+                      className="relative w-full flex items-center justify-center py-2.5 text-sm font-medium rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 focus:ring-2 focus:ring-indigo-400/40 outline-none transition-all active:scale-95 whitespace-nowrap"
+                    >
+                      <FolderInput size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-indigo-500 dark:text-indigo-400 pointer-events-none" />
+                      <span>移动分类</span>
+                      <ChevronDown size={14} className={`absolute right-3 top-1/2 -translate-y-1/2 transition-transform ${isMoveDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isMoveDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0" onClick={() => setIsMoveDropdownOpen(false)} />
+                        <div className="absolute bottom-full left-0 right-0 mb-2 max-h-60 overflow-y-auto p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl">
+                          {categoryTree.map(parent => (
+                            <div key={parent.id} className="mb-1 last:mb-0">
+                              <div className="px-2 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">{parent.name}</div>
+                              <button onClick={() => { handleBatchMove(parent.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center px-3 py-2 text-sm rounded-lg text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors">
+                                {parent.name}
+                              </button>
+                              {parent.children?.map(child => (
+                                <button key={child.id} onClick={() => { handleBatchMove(child.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center pl-6 pr-3 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors">
+                                  └ {child.name}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button onClick={handleBatchAIDescription} disabled={isBatchAIGenerating} className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-sm font-medium rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-800/50 transition-all active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                      <Sparkles size={16} className={isBatchAIGenerating ? 'animate-spin' : ''} /> {isBatchAIGenerating ? '生成中' : 'AI描述'}
+                    </button>
+                    <button onClick={handleBatchCopy} className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50 transition-all active:scale-95 whitespace-nowrap">
+                      <Copy size={16} /> 复制
+                    </button>
+                    <button onClick={handleBatchDelete} className="flex items-center justify-center gap-1.5 px-2 py-2.5 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white shadow-sm shadow-red-500/30 transition-all active:scale-95 whitespace-nowrap">
+                      <Trash2 size={16} /> 删除
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          {/* ===== PC 端布局 ===== */}
+          <div className="hidden lg:flex fixed bottom-4 left-1/2 -translate-x-1/2 z-50">
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-2xl border border-slate-200/60 dark:border-slate-700/60 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium whitespace-nowrap ${hasSelection ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300' : 'bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500'}`}>
+                {hasSelection ? (
+                  <><span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-blue-500 text-white text-xs font-bold">{selectedLinks.size}</span> 已选中</>
+                ) : (
+                  <><CheckSquare size={16} /> 批量编辑</>
+                )}
+              </div>
+              <button onClick={handleSelectAll} disabled={links.length === 0} className={`flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap ${isAllSelected ? 'bg-blue-500 text-white hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700' : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'}`}>
+                <CheckSquare size={16} /> {isAllSelected ? '取消全选' : '全选'}
+              </button>
+              {hasSelection && (
+                <>
+                  <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />
+                  <button onClick={handleBatchPin} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/40 border border-amber-200 dark:border-amber-800/50 transition-all active:scale-95 whitespace-nowrap">
+                    {allPinned ? <PinOff size={16} /> : <Pin size={16} />} {allPinned ? '取消置顶' : '置顶'}
+                  </button>
+                  <button onClick={handleBatchAIDescription} disabled={isBatchAIGenerating} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/40 border border-violet-200 dark:border-violet-800/50 transition-all active:scale-95 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed">
+                    <Sparkles size={16} className={isBatchAIGenerating ? 'animate-spin' : ''} /> {isBatchAIGenerating ? 'AI 生成中…' : 'AI 描述'}
+                  </button>
+                  <div className="relative">
+                    <button
+                      onClick={() => setIsMoveDropdownOpen(!isMoveDropdownOpen)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl border border-indigo-200 dark:border-indigo-800/50 bg-indigo-50/50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 cursor-pointer hover:bg-indigo-100 dark:hover:bg-indigo-900/40 focus:ring-2 focus:ring-indigo-400/40 outline-none transition-all active:scale-95 whitespace-nowrap"
+                    >
+                      <FolderInput size={16} /> 移动分类 <ChevronDown size={14} className={`transition-transform ${isMoveDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {isMoveDropdownOpen && (
+                      <>
+                        <div className="fixed inset-0" onClick={() => setIsMoveDropdownOpen(false)} />
+                        <div className="absolute bottom-full left-0 min-w-48 mb-2 max-h-60 overflow-y-auto p-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-xl">
+                          {categoryTree.map(parent => (
+                            <div key={parent.id} className="mb-1 last:mb-0">
+                              <div className="px-2 py-1 text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide">{parent.name}</div>
+                              <button onClick={() => { handleBatchMove(parent.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center px-3 py-2 text-sm rounded-lg text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors whitespace-nowrap">
+                                {parent.name}
+                              </button>
+                              {parent.children?.map(child => (
+                                <button key={child.id} onClick={() => { handleBatchMove(child.id); setIsMoveDropdownOpen(false); }} className="w-full flex items-center pl-6 pr-3 py-2 text-sm rounded-lg text-slate-600 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-600 dark:hover:text-indigo-300 cursor-pointer transition-colors whitespace-nowrap">
+                                  └ {child.name}
+                                </button>
+                              ))}
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <button onClick={handleBatchCopy} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800/50 transition-all active:scale-95 whitespace-nowrap">
+                    <Copy size={16} /> 复制链接
+                  </button>
+                  <button onClick={handleBatchDelete} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 text-white shadow-sm shadow-red-500/30 transition-all active:scale-95 whitespace-nowrap">
+                    <Trash2 size={16} /> 删除选中
+                  </button>
+                </>
+              )}
+              {hasSelection && <div className="w-px h-6 bg-slate-200 dark:bg-slate-700" />}
+              <button onClick={cancelBatch} className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-xl transition-all active:scale-95 whitespace-nowrap bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700">
+                <X size={16} /> 取消
+              </button>
+            </div>
+          </div>
+        </>
+        );
+      })()}
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => handleConfirmResult(false)}
+        >
+          <div
+            className="mx-4 w-full max-w-sm rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xl p-6 animate-in zoom-in-95 slide-in-from-bottom-4 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 size={20} className="text-red-600 dark:text-red-400" />
+              </div>
+              <p className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 pt-2">
+                {confirmDialog.message}
+              </p>
+            </div>
+            <div className="mt-5 flex gap-3 justify-end">
+              <button
+                onClick={() => handleConfirmResult(false)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => handleConfirmResult(true)}
+                className="px-4 py-2 text-sm font-medium rounded-lg bg-red-500 hover:bg-red-600 text-white shadow-sm transition-colors"
+              >
+                确认删除
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -74,17 +74,50 @@ export async function onRequest(context) {
   }
 
   try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    // [安全] redirect: manual + 逐跳校验，防止跳转绕过协议/IP 校验
-    const res = await safeFetchWithRedirects(validated.url.toString(), {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml',
-      },
-      signal: controller.signal,
-    }, 3);
-    clearTimeout(timer);
+    // 增强浏览器伪装：更完整的 UA + 常见请求头，降低被 WAF/bot 检测拦截的概率
+    const browserHeaders = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Cache-Control': 'no-cache',
+      'Pragma': 'no-cache',
+      'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+      'Sec-Ch-Ua-Mobile': '?0',
+      'Sec-Ch-Ua-Platform': '"Windows"',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+      'Upgrade-Insecure-Requests': '1',
+    };
+
+    // 重试逻辑：对超时/502/网络错误最多重试 2 次，逐步增加超时时间
+    const MAX_RETRIES = 2;
+    const TIMEOUTS = [8000, 12000, 15000]; // 首次 8s，第一次重试 12s，第二次 15s
+    let res = null;
+    let lastError = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), TIMEOUTS[attempt]);
+      try {
+        res = await safeFetchWithRedirects(validated.url.toString(), {
+          headers: browserHeaders,
+          signal: controller.signal,
+        }, 3);
+        clearTimeout(timer);
+        if (res && res.ok) break; // 成功则跳出重试
+        if (res && res.status >= 400 && res.status < 500 && res.status !== 429) break; // 4xx（非限流）不重试
+      } catch (fetchErr) {
+        clearTimeout(timer);
+        lastError = fetchErr;
+        // 超时或网络错误才重试，其他错误直接跳出
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 500 * (attempt + 1))); // 递增延迟
+        }
+      }
+    }
 
     if (!res) {
       return jsonResponse({ error: '无法获取页面信息' }, 502, corsHeaders);
