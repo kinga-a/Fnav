@@ -23,6 +23,8 @@ export interface Category {
   name: string;
   icon: string;
   password?: string;
+  hasPassword?: boolean;
+  clearPassword?: boolean;
   parentId?: string;
   isSubcategory?: boolean;
   weight?: number;
@@ -36,8 +38,10 @@ export interface AppState {
 
 export interface WebDavConfig {
   url: string;
+  path?: string;
   username: string;
   password: string;
+  backupPassword?: string;
   enabled: boolean;
 }
 

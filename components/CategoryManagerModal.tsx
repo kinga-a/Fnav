@@ -38,6 +38,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editClearPassword, setEditClearPassword] = useState(false);
   const [editIcon, setEditIcon] = useState('');
   const [editParentId, setEditParentId] = useState<string>('');
   const [editWeight, setEditWeight] = useState<number>(0);
@@ -248,6 +249,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
     setEditingId(cat.id);
     setEditName(cat.name);
     setEditPassword(cat.password || '');
+    setEditClearPassword(false);
     setEditIcon(cat.icon);
     setEditParentId(cat.parentId || '');
     setEditWeight(cat.weight ?? 0);
@@ -261,7 +263,9 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
           ...c,
           name: editName.trim(),
           icon: editIcon,
-          password: editPassword.trim() || undefined,
+          password: editClearPassword ? undefined : (editPassword.trim() || undefined),
+          hasPassword: editClearPassword ? false : (editPassword.trim() ? true : c.hasPassword),
+          clearPassword: editClearPassword,
           parentId: editParentId || undefined,
           isSubcategory: !!editParentId,
           weight: editWeight,
@@ -398,10 +402,22 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                                   type="password"
                                   value={editPassword}
                                   onChange={(e) => setEditPassword(e.target.value)}
-                                  className="flex-1 p-1.5 px-2 text-sm rounded border border-blue-500 dark:bg-slate-800 dark:text-white outline-none"
+                                  disabled={editClearPassword}
+                                  className="flex-1 p-1.5 px-2 text-sm rounded border border-blue-500 dark:bg-slate-800 dark:text-white outline-none disabled:opacity-50"
                                   placeholder="密码（可选）"
                                 />
                               </div>
+                              {category.hasPassword && (
+                                <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={editClearPassword}
+                                    onChange={(e) => setEditClearPassword(e.target.checked)}
+                                    className="rounded border-slate-300"
+                                  />
+                                  移除密码（保存后该分类不再加密）
+                                </label>
+                              )}
                               <div className="flex items-center gap-2">
                                 <span className="text-xs text-slate-500">排序权重:</span>
                                 <input
