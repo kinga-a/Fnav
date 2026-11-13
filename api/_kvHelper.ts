@@ -49,10 +49,11 @@ export function getCorsHeaders(req?: VercelRequest) {
   const reqOrigin = (req?.headers['origin'] as string | undefined) || '';
   if (!reqOrigin) return headers;
 
-  // 浏览器扩展源（chrome-extension://<扩展ID>）：扩展 ID 随本机安装而变，
-  // 无法预写白名单，放行该前缀源。受保护数据仍由鉴权/过滤把关
-  // （密码分类 403、isPrivate 剔除、管理操作需密码、?key= 需鉴权），不新增泄露面。
-  if (/^chrome-extension:\/\//i.test(reqOrigin)) {
+  const extensionSetting = String(process.env.ALLOWED_EXTENSION_IDS || process.env.CHROME_EXTENSION_IDS || '').trim().toLowerCase();
+  const allowAllExtensions = ['off', '*', 'all'].includes(extensionSetting);
+  const extensionMatch = /^(chrome-extension|moz-extension):\/\/([a-p]{32}|[a-f0-9-]{36})$/i.exec(reqOrigin);
+  const allowedExtensions = extensionSetting.split(',').map(s => s.trim()).filter(Boolean);
+  if (extensionMatch && (allowAllExtensions || allowedExtensions.includes(extensionMatch[2]))) {
     headers['Access-Control-Allow-Origin'] = reqOrigin;
     headers['Vary'] = 'Origin';
     return headers;
@@ -101,11 +102,7 @@ export function calcExpiryTtl(expiry: { value: number; unit: string }): number |
 export async function verifyAuth(providedPassword: string): Promise<boolean> {
   if (!providedPassword) return false;
 
-  // 恒定时间比较，避免时序侧信道
-  if (process.env.PASSWORD && timingSafeEqual(providedPassword, process.env.PASSWORD)) {
-    return true;
-  }
-
+  // 仅接受 KV 中签发的会话 Token，不再允许管理员密码直接作为 Bearer
   try {
     const tokenVal = await kv.get(`auth_token:${providedPassword}`);
     return tokenVal === 'valid';

@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { Lock, ArrowRight, Loader2, X } from 'lucide-react';
-import { Category } from '../types';
+import { Category, LinkItem } from '../types';
 import { API_ENDPOINTS } from '../src/constants';
 
 interface CategoryAuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   category: Category | null;
-  onUnlock: (categoryId: string) => void;
+  onUnlock: (categoryId: string, links?: LinkItem[]) => void;
 }
 
 const CategoryAuthModal: React.FC<CategoryAuthModalProps> = ({ isOpen, onClose, category, onUnlock }) => {
@@ -42,8 +42,20 @@ const CategoryAuthModal: React.FC<CategoryAuthModalProps> = ({ isOpen, onClose, 
         return;
       }
 
-      // 密码正确，解锁分类
-      onUnlock(category.id);
+      // 密码正确：服务端返回该分类书签，立即交给页面合并显示
+      const data = await res.json().catch(() => null);
+      const unlockedLinks = Array.isArray(data) ? data : [];
+
+      // 密码正确，保存服务端签发的解锁令牌
+      const token = res.headers.get('X-Category-Token');
+      if (token) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('category_unlock_tokens') || '{}');
+          stored[category.id] = token;
+          localStorage.setItem('category_unlock_tokens', JSON.stringify(stored));
+        } catch {}
+      }
+      onUnlock(category.id, unlockedLinks);
       setPassword('');
       setError('');
       setIsLoading(false);

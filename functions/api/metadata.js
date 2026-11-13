@@ -1,6 +1,6 @@
 // 抓取目标网页的 <title> 与 <meta name="description">，用于无 AI 时自动填写书签信息
 // [安全] VULN-03：SSRF 防护（仅 HTTPS 公网地址 + 逐跳校验 + 大小限制 + 简单限流），保留匿名访问
-import { getCorsHeaders, jsonResponse, validateExternalUrl, safeFetchWithRedirects } from './_kvAdapter.js';
+import { getCorsHeaders, jsonResponse, validateExternalUrlAsync, safeFetchWithRedirects } from './_kvAdapter.js';
 
 const MAX_HTML_BYTES = 200000; // 读取上限 200KB（与原有逻辑一致）
 const REQUEST_WINDOW_MS = 60000; // 1 分钟窗口
@@ -68,7 +68,7 @@ export async function onRequest(context) {
 
   // [安全] VULN-03：仅允许 HTTPS 公网地址，拦截私有/保留 IP 段
   const rawUrl = target.startsWith('http') ? target : `https://${target}`;
-  const validated = validateExternalUrl(rawUrl);
+  const validated = await validateExternalUrlAsync(rawUrl);
   if (!validated.ok) {
     return jsonResponse({ error: validated.error || 'invalid url' }, 400, corsHeaders);
   }

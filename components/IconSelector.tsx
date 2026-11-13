@@ -80,7 +80,7 @@ const IconSelector: React.FC<IconSelectorProps> = ({
       </div>
 
       {/* Icons Grid */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto scrollbar-hide p-4">
         {filteredIcons.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-slate-400">
             <Search size={40} className="mb-3 opacity-50" />

@@ -71,7 +71,7 @@ export function sanitizeSvg(svg: string): string {
     if (parserError) return '';
 
     // 移除危险标签
-    const dangerousTags = ['script', 'foreignObject', 'use', 'image', 'iframe', 'object', 'embed'];
+    const dangerousTags = ['script', 'foreignObject', 'use', 'image', 'iframe', 'object', 'embed', 'animate', 'animateMotion', 'animateTransform', 'set'];
     dangerousTags.forEach(tag => {
       doc.querySelectorAll(tag).forEach(el => el.remove());
     });
@@ -120,7 +120,13 @@ export function sanitizeInlineHtml(html: string): string {
       // 过滤 style 中的危险内容
       const cleanStyle = String(style).replace(/expression\s*\(/gi, '').replace(/javascript:/gi, '');
       const placeholder = `\x00ALLOWED_${allowedSpans.length}\x00`;
-      allowedSpans.push(`<span style="${cleanStyle}">${content}</span>`);
+      const escapedContent = String(content)
+        .replace(/&/g, AMP)
+        .replace(/</g, LT)
+        .replace(/>/g, GT)
+        .replace(/"/g, QUOT)
+        .replace(/'/g, APOS);
+      allowedSpans.push(`<span style="${cleanStyle}">${escapedContent}</span>`);
       return placeholder;
     }
   );

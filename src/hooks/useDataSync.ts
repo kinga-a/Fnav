@@ -50,11 +50,17 @@ export function useDataSync() {
   // 从 KV 加载链接和分类（带密码过滤）
   const loadFromCloud = useCallback(async (unlockedCats?: Set<string>): Promise<{ links: LinkItem[]; categories: Category[] } | null> => {
     try {
-      const unlockedArray = unlockedCats ? Array.from(unlockedCats) : [];
-      // [安全] 登录态请求必须带 Authorization，否则后端按匿名剔除 isPrivate 私人书签
       const headers: Record<string, string> = {};
       if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-      const res = await fetch(`${API_ENDPOINTS.STORAGE}?getConfig=true&readOnly=true&unlocked=${encodeURIComponent(JSON.stringify(unlockedArray))}`, { headers });
+      const params = new URLSearchParams({ getConfig: 'true', readOnly: 'true' });
+      try {
+        const tokens = JSON.parse(localStorage.getItem('category_unlock_tokens') || '{}');
+        if (tokens && Object.keys(tokens).length > 0) {
+          params.set('categoryTokens', JSON.stringify(tokens));
+        }
+      } catch {}
+      // [安全] 不再把客户端 unlocked 列表直接交给服务端，改由服务端校验签名令牌
+      const res = await fetch(`${API_ENDPOINTS.STORAGE}?${params.toString()}`, { headers });
       if (!res.ok) return null;
       const data = await res.json();
       if (data.links?.length > 0 || data.categories?.length > 0) {
@@ -152,8 +158,8 @@ export function useDataSync() {
     const unlockedChanged = unlockedKey !== prevUnlockedKey.current;
     prevAuthToken.current = authToken;
     prevUnlockedKey.current = unlockedKey;
-    // 登录成功，或已登录状态下解锁了密码分类 → 重新加载完整数据
-    if ((wasLoggedOut && authToken) || (authToken && unlockedChanged)) {
+    // 登录成功，或解锁/锁定密码分类变化 → 重新加载完整数据（匿名解锁同样生效）
+    if ((wasLoggedOut && authToken) || unlockedChanged) {
       initialized.current = false; // 允许 initData 重跑
       initData(unlockedCategoryIds);
     }

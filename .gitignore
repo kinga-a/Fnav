@@ -6,6 +6,10 @@ node_modules/
 dist/
 dist-ssr/
 
+# EdgeOne generated functions
+cloud-functions/
+edge-functions/
+
 # Local env files
 .env
 .env.*

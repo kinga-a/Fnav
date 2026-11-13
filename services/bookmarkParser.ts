@@ -96,7 +96,7 @@ export const parseBookmarks = async (file: File): Promise<ImportResult> => {
             const title = a.textContent || a.getAttribute('href') || 'No Title';
             const url = a.getAttribute('href');
 
-            if (url && !url.startsWith('chrome://') && !url.startsWith('about:')) {
+            if (url && /^https?:\/\//i.test(url)) {
                 // Get the deepest category in the current path
                 const categoryId = ensureCategoryPath(categoryPath);
 

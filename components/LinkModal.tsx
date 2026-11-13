@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Sparkles, Loader2, Pin, Wand2, Trash2, Globe } from 'lucide-react';
 import { LinkItem, Category, AIConfig, IconSourceType, IconConfig } from '../types';
 import { generateLinkDescription, suggestCategory } from '../services/geminiService';
 import { toast } from './Toast';
 import { STORAGE_KEYS } from '../src/constants';
+import { useModalA11y } from '../src/hooks/useModalA11y';
 
 interface LinkModalProps {
   isOpen: boolean;
@@ -21,6 +22,7 @@ interface LinkModalProps {
 const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete, categories, initialData, aiConfig, defaultCategoryId, iconConfig, supportsUpload = true }) => {
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
+  const [formErrors, setFormErrors] = useState({ title: false, url: false });
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState(categories[0]?.id || 'common');
   const [pinned, setPinned] = useState(false);
@@ -170,6 +172,8 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
 
   const [mounted, setMounted] = useState(isOpen);
   const [closing, setClosing] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalA11y(isOpen, onClose, panelRef);
   useEffect(() => {
     if (isOpen) {
       setMounted(true);
@@ -339,7 +343,11 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title || !url) return;
+    if (!title.trim() || !url.trim()) {
+      setFormErrors({ title: !title.trim(), url: !url.trim() });
+      return;
+    }
+    setFormErrors({ title: false, url: false });
 
     let finalUrl = url;
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
@@ -507,11 +515,11 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
   if (!mounted) return null;
 
   return (
-    <div className={`fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto transition-opacity duration-200 ${!closing ? 'modal-overlay' : ''} ${closing ? 'opacity-0' : 'opacity-100'}`}>
-      <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[92dvh] sm:max-h-[85dvh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 my-auto pb-[env(safe-area-inset-bottom)] transition-all duration-200 ${!closing ? 'modal-panel' : ''} ${closing ? 'opacity-0 translate-y-3 scale-95' : 'opacity-100 translate-y-0 scale-100'}`}>
+    <div className={`fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm overflow-y-auto scrollbar-hide transition-opacity duration-200 ${!closing ? 'modal-overlay' : ''} ${closing ? 'opacity-0' : 'opacity-100'}`}>
+      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="link-modal-title" className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[92dvh] sm:max-h-[85dvh] overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700 my-auto pb-[env(safe-area-inset-bottom)] focus:outline-none transition-all duration-200 ${!closing ? 'modal-panel' : ''} ${closing ? 'opacity-0 translate-y-3 scale-95' : 'opacity-100 translate-y-0 scale-100'}`}>
         <div className="flex justify-between items-start sm:items-center p-4 border-b border-slate-200 dark:border-slate-700 gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="text-lg font-semibold dark:text-white">
+            <h3 id="link-modal-title" className="text-lg font-semibold dark:text-white">
               {initialData ? '编辑链接' : '添加新链接'}
             </h3>
             <button
@@ -573,17 +581,18 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
           </button>
         </div>
 
-        <form onSubmit={handleSave} noValidate className="p-4 space-y-4 overflow-y-auto flex-1">
+        <form onSubmit={handleSave} noValidate className="p-4 space-y-4 overflow-y-auto scrollbar-hide flex-1">
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-slate-300">标题</label>
             <input
               type="text"
               required
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-base"
+              onChange={(e) => { setTitle(e.target.value); if (formErrors.title) setFormErrors((prev) => ({ ...prev, title: false })); }}
+              className={`w-full p-2 rounded-lg border dark:bg-slate-700 dark:text-white outline-none transition-all text-base focus:ring-2 ${formErrors.title ? 'border-red-400 dark:border-red-500 focus:ring-red-500' : 'border-slate-300 dark:border-slate-600 focus:ring-blue-500'}`}
               placeholder="网站名称"
             />
+            {formErrors.title && <p className="mt-1 text-xs text-red-500">请填写网站名称</p>}
           </div>
 
           <div>
@@ -593,11 +602,12 @@ const LinkModal: React.FC<LinkModalProps> = ({ isOpen, onClose, onSave, onDelete
                 type="text"
                 required
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-600 dark:bg-slate-700 dark:text-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-base"
+                onChange={(e) => { setUrl(e.target.value); if (formErrors.url) setFormErrors((prev) => ({ ...prev, url: false })); }}
+                className={`w-full p-2 rounded-lg border dark:bg-slate-700 dark:text-white outline-none transition-all text-base focus:ring-2 ${formErrors.url ? 'border-red-400 dark:border-red-500 focus:ring-red-500' : 'border-slate-300 dark:border-slate-600 focus:ring-blue-500'}`}
                 placeholder="example.com 或 https://..."
               />
             </div>
+            {formErrors.url && <p className="mt-1 text-xs text-red-500">请填写链接</p>}
           </div>
 
           <div>

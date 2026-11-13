@@ -77,7 +77,7 @@ const SearchConfigModal: React.FC<SearchConfigModalProps> = ({ isOpen, onClose, 
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-6">
           {/* 默认模式 */}
           <section>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">默认搜索模式</label>

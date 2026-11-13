@@ -159,9 +159,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 登录成功：重置限速计数
     resetAttempts(clientIp);
 
-    // 清理旧 Token
+    // 按客户端类型隔离会话：网页与浏览器扩展各自单设备
+    const clientType = body.client === 'extension' ? 'extension' : 'web';
+    const tokenKey = clientType === 'extension' ? 'last_token:extension' : 'last_token';
+
+    // 清理该客户端类型的旧 Token
     try {
-      const oldToken = await kv.get('last_token');
+      const oldToken = await kv.get(tokenKey);
       if (oldToken) {
         await kv.del(`auth_token:${oldToken}`);
       }
@@ -188,10 +192,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await kv.set('last_auth_time', Date.now().toString());
     if (expirationTtl) {
       await kv.set(`auth_token:${token}`, 'valid', { ex: expirationTtl });
-      await kv.set('last_token', token, { ex: expirationTtl });
+      await kv.set(tokenKey, token, { ex: expirationTtl });
     } else {
       await kv.set(`auth_token:${token}`, 'valid');
-      await kv.set('last_token', token);
+      await kv.set(tokenKey, token);
     }
 
     return jsonResponse(res, 200, {

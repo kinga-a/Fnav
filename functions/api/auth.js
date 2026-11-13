@@ -8,13 +8,14 @@ import { getKV, getCorsHeaders, jsonResponse, verifyAuth, getAuthToken, timingSa
 // ==================== 登录限速（进程内） ====================
 const MAX_ATTEMPTS = 5; // 连续失败 5 次后触发退避
 const MAX_BACKOFF_MS = 300000; // 退避上限 5 分钟
+const MAX_TRACKED_IPS = 10000; // 限流表上限，防止伪造 IP 撑爆内存
 const loginAttempts = new Map(); // ip -> { count, totpFails, lockedUntil }
 
 function getClientIp(request) {
   return (
+    request.headers.get('x-real-ip') ||
     request.headers.get('cf-connecting-ip') ||
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
     'unknown'
   );
 }
@@ -39,6 +40,16 @@ function lockRemainingMs(ip) {
 
 function recordFailure(ip, type) {
   const now = Date.now();
+  if (loginAttempts.size >= MAX_TRACKED_IPS) {
+    for (const [key, rec] of loginAttempts) {
+      if (!rec.lockedUntil || rec.lockedUntil <= now) loginAttempts.delete(key);
+      if (loginAttempts.size < MAX_TRACKED_IPS) break;
+    }
+    if (loginAttempts.size >= MAX_TRACKED_IPS) {
+      const oldest = loginAttempts.keys().next().value;
+      if (oldest) loginAttempts.delete(oldest);
+    }
+  }
   const rec = loginAttempts.get(ip) || { count: 0, totpFails: 0, lockedUntil: 0 };
   if (type === 'totp') rec.totpFails += 1;
   else rec.count += 1;
@@ -176,11 +187,16 @@ export async function onRequest(context) {
     };
     const websiteCfg = await readWebsiteConfig();
 
-    // 清理旧 Token（单设备模式：新登录踢掉旧会话）
+    // 按客户端类型隔离单设备会话：网页（web）与浏览器扩展（extension）各自维护一个 Token
+    // 扩展保存链接时不会再踢掉网页登录；同一类型内仍保持单设备语义
+    const clientType = body.client === 'extension' ? 'extension' : 'web';
+    const tokenKey = clientType === 'extension' ? 'last_token:extension' : 'last_token';
+
+    // 清理该客户端类型的旧 Token
     // singleDevice 默认 true（开启单设备），仅当配置明确为 false 时允许多设备同时在线
     if (websiteCfg.singleDevice !== false) {
       try {
-        const oldToken = await kv.get('last_token');
+        const oldToken = await kv.get(tokenKey);
         if (oldToken) {
           await kv.delete(`auth_token:${oldToken}`);
         }
@@ -210,8 +226,8 @@ export async function onRequest(context) {
     const kvOptions = expirationTtl ? { expirationTtl } : {};
     await kv.put(`auth_token:${token}`, 'valid', kvOptions);
 
-    // 记录当前 Token（用于下次登录时清理）
-    await kv.put('last_token', token, kvOptions);
+    // 记录当前类型的 Token（用于下次同类型登录时清理）
+    await kv.put(tokenKey, token, kvOptions);
 
     return jsonResponse({
       success: true,

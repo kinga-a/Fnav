@@ -8,6 +8,7 @@ import MastodonTicker from '../../../components/MastodonTicker';
 import WeatherDisplay from '../../../components/WeatherDisplay';
 import { useState, useRef, useEffect } from 'react';
 import { SEARCH_ENGINES } from '../../constants';
+import { captureCardRects } from '../../utils/layoutMorph';
 
 import {
   GoogleLogo,
@@ -332,7 +333,7 @@ export function Header({
             className={`${isMobileSearchOpen || isToolsExpanded ? 'hidden' : 'flex'} items-center bg-slate-200 dark:bg-slate-700 rounded-full h-[28px] sm:h-[36px] shrink-0 p-0.5`}
           >
             <button
-              onClick={() => setViewMode('compact')}
+              onClick={() => { captureCardRects(); setViewMode('compact'); }}
               className={`px-1.5 sm:px-3 py-1 sm:py-2 text-[10px] sm:text-xs font-medium rounded-full transition-all flex items-center justify-center h-full min-w-[28px] sm:min-w-[40px] leading-none cursor-pointer ${
                 viewMode === 'compact'
                   ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
@@ -341,7 +342,7 @@ export function Header({
               title="简约版视图"
             ><span className="hidden sm:inline">简约</span><span className="sm:hidden">简</span></button>
             <button
-              onClick={() => setViewMode('detailed')}
+              onClick={() => { captureCardRects(); setViewMode('detailed'); }}
               className={`px-1.5 sm:px-3 py-1 sm:py-2 text-[10px] sm:text-xs font-medium rounded-full transition-all flex items-center justify-center h-full min-w-[28px] sm:min-w-[40px] leading-none cursor-pointer ${
                 viewMode === 'detailed'
                   ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'

@@ -1,7 +1,7 @@
 // 统一存储接口 v2.3 - 性能优化版
 // 支持 EdgeOne Pages / Cloudflare Workers
 
-import { getKV, getCorsHeaders, verifyAuth, jsonResponse, getAuthToken } from './_kvAdapter.js';
+import { getKV, getCorsHeaders, verifyAuth, jsonResponse, getAuthToken, timingSafeEqual } from './_kvAdapter.js';
 
 const STORAGE_KEYS = {
   CONFIG_KEY: 'config',
@@ -25,6 +25,40 @@ function isDeniedKey(key) {
 
 function isAllowedKey(key) {
   return ALLOWED_KEY_PREFIXES.some(p => key.startsWith(p));
+}
+
+const CATEGORY_TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
+
+async function categoryTokenSecret(env) {
+  return env.CATEGORY_UNLOCK_SECRET || env.PASSWORD || '';
+}
+
+async function signCategoryToken(env, categoryId, expiresAt) {
+  const secret = await categoryTokenSecret(env);
+  if (!secret) return null;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(`${categoryId}.${expiresAt}`));
+  const encoded = btoa(String.fromCharCode(...new Uint8Array(signature)))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+  return `${encoded}.${expiresAt}`;
+}
+
+async function verifyCategoryToken(env, categoryId, token) {
+  if (typeof token !== 'string') return false;
+  const separator = token.lastIndexOf('.');
+  if (separator <= 0) return false;
+  const expiresAt = Number(token.slice(separator + 1));
+  if (!Number.isFinite(expiresAt) || expiresAt < Date.now()) return false;
+  const expected = await signCategoryToken(env, categoryId, expiresAt);
+  return expected !== null && expected === token;
 }
 
 /**
@@ -259,19 +293,26 @@ export async function onRequest(context) {
       }
 
       let unlockedCategories = new Set();
-      const unlockedParam = url.searchParams.get('unlocked');
-      if (unlockedParam) {
-        try {
-          unlockedCategories = new Set(JSON.parse(unlockedParam));
-        } catch (e) {}
-      }
-
       const providedPassword = getAuthToken(request);
       const isAdmin = await verifyAuth({
         providedPassword,
         serverPassword: env.PASSWORD,
         kv,
       });
+
+      if (!isAdmin) {
+        const tokensParam = url.searchParams.get('categoryTokens');
+        if (tokensParam) {
+          try {
+            const tokens = JSON.parse(tokensParam);
+            if (tokens && typeof tokens === 'object') {
+              for (const [catId, token] of Object.entries(tokens)) {
+                if (await verifyCategoryToken(env, catId, token)) unlockedCategories.add(catId);
+              }
+            }
+          } catch (e) {}
+        }
+      }
 
       if (getConfig === 'links') {
         const categoriesData = await kv.get(STORAGE_KEYS.CATEGORIES_CONFIG_KEY);
@@ -285,12 +326,15 @@ export async function onRequest(context) {
 
           const hasPassword = cat.password && cat.password.trim() !== '';
           let isUnlocked = unlockedCategories.has(category);
+          let categoryToken = null;
 
           if (categoryPassword && hasPassword && !isUnlocked && !isAdmin) {
             const inputPwd = categoryPassword.trim();
             const storedPwd = (cat.password || '').trim();
-            if (inputPwd === storedPwd) {
+            if (timingSafeEqual(inputPwd, storedPwd)) {
               isUnlocked = true;
+              const expiresAt = Date.now() + CATEGORY_TOKEN_TTL_MS;
+              categoryToken = await signCategoryToken(env, category, expiresAt);
             } else {
               return jsonResponse({ error: '密码错误' }, 403, corsHeaders);
             }
@@ -304,7 +348,10 @@ export async function onRequest(context) {
           const links = data ? JSON.parse(data) : [];
           // 私人书签（isPrivate）：未登录（非管理员）时剔除，与前端可见性一致
           const visibleLinks = isAdmin ? links : links.filter(l => !l.isPrivate);
-          return jsonResponse(visibleLinks, 200, corsHeaders);
+          const extraHeaders = categoryToken
+            ? { ...corsHeaders, 'X-Category-Token': categoryToken }
+            : corsHeaders;
+          return jsonResponse(visibleLinks, 200, extraHeaders);
         }
 
         const links = await readAllCategoryLinks(kv, categories, unlockedCategories, isAdmin);
@@ -357,9 +404,22 @@ export async function onRequest(context) {
 
       if (readOnlyOperations.includes(body.operation) || body.saveConfig === 'favicon') {
         if (body.saveConfig === 'favicon') {
-          const { domain, icon } = body;
-          if (!domain || !icon) {
-            return jsonResponse({ error: 'Domain and icon are required' }, 400, corsHeaders);
+          const providedPassword = getAuthToken(request);
+          const isAuthenticated = await verifyAuth({
+            providedPassword,
+            serverPassword: env.PASSWORD,
+            kv,
+          });
+          if (!isAuthenticated) {
+            return jsonResponse({ error: '管理操作需要密码验证' }, 401, corsHeaders);
+          }
+          const domain = typeof body.domain === 'string' ? body.domain : '';
+          const icon = body.icon;
+          if (!/^[a-z0-9.-]{1,253}$/i.test(domain) || domain.includes('..')) {
+            return jsonResponse({ error: 'Invalid domain' }, 400, corsHeaders);
+          }
+          if (typeof icon !== 'string' || icon.length === 0 || icon.length > 512 * 1024) {
+            return jsonResponse({ error: 'Invalid icon payload' }, 400, corsHeaders);
           }
           await kv.put(`favicon:${domain}`, icon, { expirationTtl: 30 * 24 * 60 * 60 });
           return jsonResponse({ success: true }, 200, corsHeaders);

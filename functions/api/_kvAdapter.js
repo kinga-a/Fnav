@@ -64,16 +64,24 @@ export function getCorsHeaders(env, request) {
   const headers = {
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, DELETE',
     'Access-Control-Allow-Headers': 'Content-Type, x-auth-password, Authorization',
+    'Access-Control-Expose-Headers': 'X-Category-Token',
     'Access-Control-Max-Age': '86400',
   };
 
   const reqOrigin = request?.headers?.get('origin');
   if (!reqOrigin) return headers;
 
-  // 浏览器扩展源（chrome-extension://<扩展ID>）：扩展 ID 随本机安装而变，
-  // 无法预写白名单，放行该前缀源。受保护数据仍由鉴权/过滤把关
-  // （密码分类 403、isPrivate 剔除、管理操作需密码、?key= 需鉴权），不新增泄露面。
-  if (/^chrome-extension:\/\//i.test(reqOrigin)) {
+  // 浏览器扩展源（chrome-extension:// / moz-extension://）：
+  // 默认只放行 ALLOWED_EXTENSION_IDS 中列出的 ID；
+  // 设为 off / * / all 时放行所有扩展（仅建议调试或完全信任本机扩展时使用）。
+  const extensionSetting = String(env?.ALLOWED_EXTENSION_IDS || env?.CHROME_EXTENSION_IDS || '').trim().toLowerCase();
+  const allowAllExtensions = ['off', '*', 'all'].includes(extensionSetting);
+  const extensionMatch = /^(chrome-extension|moz-extension):\/\/([a-p]{32}|[a-f0-9-]{36})$/i.exec(reqOrigin);
+  const allowedExtensions = extensionSetting
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+  if (extensionMatch && (allowAllExtensions || allowedExtensions.includes(extensionMatch[2]))) {
     headers['Access-Control-Allow-Origin'] = reqOrigin;
     headers['Vary'] = 'Origin';
     return headers;
@@ -113,12 +121,7 @@ export function getCorsHeaders(env, request) {
 export async function verifyAuth({ providedPassword, serverPassword, kv }) {
   if (!providedPassword) return false;
 
-  // 直接匹配密码（恒定时间比较，避免时序侧信道）
-  if (serverPassword && timingSafeEqual(providedPassword, serverPassword)) {
-    return true;
-  }
-
-  // 查 KV 中的 Token
+  // 仅接受 KV 中签发的一次性会话 Token，不再允许直接用管理员密码作为 Bearer
   try {
     const tokenVal = await kv.get(`auth_token:${providedPassword}`);
     return tokenVal === 'valid';
@@ -173,6 +176,12 @@ const PRIVATE_HOST_RE = new RegExp(
 export function isBlockedHost(hostname) {
   if (!hostname) return true;
   const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+  if (host.startsWith('::ffff:')) {
+    const mapped = host.slice(7);
+    if (PRIVATE_HOST_RE.test(mapped)) return true;
+  }
+  if (/^\d+$/.test(host)) return true;
+  if (/^0x[0-9a-f]+$/i.test(host) || /^0\d+(\.\d+){0,3}$/.test(host)) return true;
   return PRIVATE_HOST_RE.test(host);
 }
 
@@ -205,10 +214,57 @@ export function validateExternalUrl(raw) {
  * @param {number} maxHops - 最大跳转次数
  * @returns {Promise<Response|null>}
  */
+export async function validateExternalUrlAsync(raw) {
+  const basic = validateExternalUrl(raw);
+  if (!basic.ok) return basic;
+  const url = basic.url;
+
+  if (typeof globalThis.process === 'undefined' || !globalThis.process.versions?.node) {
+    return { ok: true, url };
+  }
+
+  try {
+    // 通过 Function 构造器做运行时导入，避免 EdgeOne/Cloudflare 构建器静态解析 node: 模块
+    const runtimeImport = new Function('specifier', 'return import(specifier)');
+    const dns = await runtimeImport('node:dns/promises');
+    const net = await runtimeImport('node:net');
+    const records = await dns.lookup(url.hostname, { all: true, verbatim: true });
+    if (!records.length) return { ok: false, error: 'Host not resolvable' };
+
+    const block = new net.BlockList();
+    const ipv4Ranges = [
+      ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8],
+      ['169.254.0.0', 16], ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.0.2.0', 24],
+      ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24],
+      ['224.0.0.0', 4], ['240.0.0.0', 4],
+    ];
+    for (const [address, prefix] of ipv4Ranges) block.addSubnet(address, prefix, 'ipv4');
+    block.addAddress('::1', 'ipv6');
+    block.addSubnet('fc00::', 7, 'ipv6');
+    block.addSubnet('fe80::', 10, 'ipv6');
+    block.addSubnet('ff00::', 8, 'ipv6');
+
+    for (const record of records) {
+      let address = record.address;
+      let family = record.family === 6 ? 'ipv6' : 'ipv4';
+      if (family === 'ipv6' && address.toLowerCase().startsWith('::ffff:')) {
+        address = address.slice(7);
+        family = 'ipv4';
+      }
+      if (block.check(address, family)) {
+        return { ok: false, error: 'Private or reserved address is not allowed' };
+      }
+    }
+    return { ok: true, url };
+  } catch {
+    return { ok: false, error: 'Host resolution failed' };
+  }
+}
+
 export async function safeFetchWithRedirects(startUrl, init, maxHops = 3) {
   let current = startUrl;
   for (let hop = 0; hop <= maxHops; hop++) {
-    const check = validateExternalUrl(current);
+    const check = await validateExternalUrlAsync(current);
     if (!check.ok) return null;
     const res = await fetch(current, { ...init, redirect: 'manual' });
     if (res.status >= 300 && res.status < 400) {

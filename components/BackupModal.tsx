@@ -3,6 +3,8 @@ import { X, Cloud, Download, Upload, CheckCircle2, AlertCircle, RefreshCw, Save,
 import { Category, LinkItem, WebDavConfig, SearchConfig, AIConfig } from '../types';
 import { checkWebDavConnection, uploadBackup, downloadBackup } from '../services/webDavService';
 import { generateBookmarkHtml, downloadHtmlFile } from '../services/exportService';
+import { useDialogClose } from '../src/hooks/useDialogClose';
+import { useModalA11y } from '../src/hooks/useModalA11y';
 
 interface BackupModalProps {
   isOpen: boolean;
@@ -29,6 +31,10 @@ const BackupModal: React.FC<BackupModalProps> = ({
   const [importStatus, setImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [importMsg, setImportMsg] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const { closing, close } = useDialogClose(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalA11y(isOpen, close, panelRef);
 
   useEffect(() => {
     if(isOpen) {
@@ -321,18 +327,18 @@ const BackupModal: React.FC<BackupModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-[90dvh] flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold dark:text-white flex items-center gap-2">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center px-4 py-[5dvh] bg-black/50 backdrop-blur-sm ${closing ? 'modal-overlay-out' : 'modal-overlay'}`}>
+      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="backup-modal-title" className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-700 h-full flex flex-col focus:outline-none ${closing ? 'modal-panel-out' : 'modal-panel'}`}>
+        <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+          <h3 id="backup-modal-title" className="text-lg font-semibold dark:text-white flex items-center gap-2">
             <Cloud className="text-blue-500" /> 备份与恢复
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
+          <button onClick={close} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
             <X className="w-5 h-5 dark:text-slate-400" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-8">
+        <div className="flex-1 overflow-y-auto scrollbar-hide p-6 space-y-8">
             
             <section className="space-y-4">
                 <div className="flex items-center justify-between">

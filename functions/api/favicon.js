@@ -43,6 +43,25 @@ function detectMimeType(arrayBuffer) {
   return 'image/x-icon';
 }
 
+const SAFE_IMAGE_MIMES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/x-icon', 'image/svg+xml']);
+
+function imageResponse(buffer, mime, corsHeaders, cacheControl = 'public, max-age=604800') {
+  if (!SAFE_IMAGE_MIMES.has(mime)) {
+    return new Response('Unsupported image type', { status: 415, headers: { ...corsHeaders } });
+  }
+  return new Response(buffer, {
+    status: 200,
+    headers: {
+      'Content-Type': mime,
+      'Cache-Control': cacheControl,
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy': "default-src 'none'; sandbox",
+      'Content-Disposition': 'inline',
+      ...corsHeaders,
+    },
+  });
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   const corsHeaders = getCorsHeaders(env, request);
@@ -82,6 +101,13 @@ export async function onRequest(context) {
     return jsonResponse({ error: 'key or domain parameter required' }, 400, corsHeaders);
   }
 
+  if (domain && (!/^[a-z0-9.-]{1,253}$/i.test(domain) || domain.includes('..') || domain.startsWith('.') || domain.endsWith('.'))) {
+    return jsonResponse({ error: 'Invalid domain' }, 400, corsHeaders);
+  }
+  if (key && (!/^[a-zA-Z0-9_.\/-]{1,200}$/.test(key) || key.split('/').includes('..'))) {
+    return jsonResponse({ error: 'Invalid key' }, 400, corsHeaders);
+  }
+
   // 读取 KV 缓存配置状态（优先读独立 config:icon key，fallback 到旧 config）
   const kv = getKV(env);
   let cacheEnabled = true;
@@ -115,30 +141,14 @@ export async function onRequest(context) {
       // Docker 部署：图标二进制缓存在文件系统 KV 中
       const cached = await kv.get(fsKey, { type: 'arrayBuffer' });
       if (cached) {
-        const mime = detectMimeType(cached);
-        return new Response(cached, {
-          status: 200,
-          headers: {
-            'Content-Type': mime,
-            'Cache-Control': 'public, max-age=31536000, immutable',
-            ...corsHeaders
-          }
-        });
+        return imageResponse(cached, detectMimeType(cached), corsHeaders, 'public, max-age=31536000, immutable');
       }
     } else if (isCloudflareR2) {
       if (env.CLOUDNAV_R2) {
         const object = await env.CLOUDNAV_R2.get(storageKey);
         if (object) {
           const cached = await object.arrayBuffer();
-          const mime = detectMimeType(cached);
-          return new Response(cached, {
-            status: 200,
-            headers: {
-              'Content-Type': mime,
-              'Cache-Control': 'public, max-age=31536000, immutable',
-              ...corsHeaders
-            }
-          });
+          return imageResponse(cached, detectMimeType(cached), corsHeaders, 'public, max-age=31536000, immutable');
         }
       }
     } else {
@@ -155,15 +165,7 @@ export async function onRequest(context) {
         const store = getStore('favicons');
         const cached = await store.get(storageKey, { type: 'arrayBuffer' });
         if (cached) {
-          const mime = detectMimeType(cached);
-          return new Response(cached, {
-            status: 200,
-            headers: {
-              'Content-Type': mime,
-              'Cache-Control': 'public, max-age=31536000, immutable',
-              ...corsHeaders
-            }
-          });
+          return imageResponse(cached, detectMimeType(cached), corsHeaders, 'public, max-age=31536000, immutable');
         }
       } else {
         console.warn('Blob store not available for read (getStore is undefined)');
@@ -181,16 +183,25 @@ export async function onRequest(context) {
   // 2. 如果是 domain 请求且无缓存，则从上游抓取并保存
   let buffer = null;
   for (const getUrl of UPSTREAM_PROVIDERS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
     try {
       const res = await fetch(getUrl(domain), {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+        signal: controller.signal,
       });
       if (res.ok) {
-        buffer = await res.arrayBuffer();
+        const declaredLength = Number(res.headers.get('content-length') || 0);
+        if (declaredLength > 512 * 1024) continue;
+        const candidate = await res.arrayBuffer();
+        if (candidate.byteLength > 512 * 1024) continue;
+        buffer = candidate;
         break;
       }
     } catch (e) {
       console.warn(`Fetch error for ${domain}:`, e);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -234,15 +245,7 @@ export async function onRequest(context) {
       }
     }
 
-    const mime = detectMimeType(buffer);
-    return new Response(buffer, {
-      status: 200,
-      headers: {
-        'Content-Type': mime,
-        'Cache-Control': 'public, max-age=604800',
-        ...corsHeaders
-      }
-    });
+    return imageResponse(buffer, detectMimeType(buffer), corsHeaders);
   }
 
   // 4. 最终降级：重定向至本地默认 favicon

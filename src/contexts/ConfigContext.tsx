@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
 import {
   AppConfig, AIConfig, WebsiteConfig, WebDavConfig,
   SearchConfig, IconConfig, TickerConfig, WeatherConfig,
@@ -252,14 +252,19 @@ export function ConfigProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  return (
-    <ConfigContext.Provider value={{
+  const contextValue = useMemo(
+    () => ({
       ...state,
       initConfig,
       setAI, setWebsite, setWebDav, setSearch, setIcon,
       setMastodon, setWeather, setViewMode, setShowPinned, setDarkMode, setSubcategoryLayout,
       syncConfigToKV, loadConfigFromKV,
-    }}>
+    }),
+    [state, initConfig, setAI, setWebsite, setWebDav, setSearch, setIcon, setMastodon, setWeather, setViewMode, setShowPinned, setDarkMode, setSubcategoryLayout, syncConfigToKV, loadConfigFromKV],
+  );
+
+  return (
+    <ConfigContext.Provider value={contextValue}>
       {children}
     </ConfigContext.Provider>
   );

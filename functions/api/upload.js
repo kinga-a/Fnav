@@ -2,9 +2,32 @@
 // 支持将图标上传到 EdgeOne Pages Blob (腾讯云) 或 Cloudflare R2 (S3/Cloudflare)
 // 简洁注释以遵循用户全局规则
 
-import { getKV, getCorsHeaders, verifyAuth, jsonResponse, getAuthToken, validateExternalUrl, safeFetchWithRedirects } from './_kvAdapter.js';
+import { getKV, getCorsHeaders, verifyAuth, jsonResponse, getAuthToken, validateExternalUrlAsync, safeFetchWithRedirects } from './_kvAdapter.js';
 
-const MAX_FETCH_BYTES = 5 * 1024 * 1024; // 外部抓取上限 5MB
+const MAX_FETCH_BYTES = 2 * 1024 * 1024; // 外部抓取上限 2MB
+const MAX_FILE_BYTES = 2 * 1024 * 1024; // 上传文件上限 2MB
+const MIME_TO_EXT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+  'image/x-icon': 'ico',
+  'image/vnd.microsoft.icon': 'ico',
+  'image/svg+xml': 'svg',
+};
+
+function extFromMime(contentType) {
+  return MIME_TO_EXT[String(contentType || '').split(';')[0].trim().toLowerCase()] || '';
+}
+
+function looksLikeSvg(buffer) {
+  try {
+    const head = new TextDecoder('utf-8').decode(buffer.slice(0, 512)).trim().toLowerCase();
+    return head.includes('<svg');
+  } catch {
+    return false;
+  }
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -106,7 +129,7 @@ export async function onRequest(context) {
 
     if (fetchUrl) {
       // [安全] VULN-12：仅允许 HTTPS 公网地址，拦截私有/保留 IP 段，限制响应大小
-      const validated = validateExternalUrl(String(fetchUrl));
+      const validated = await validateExternalUrlAsync(String(fetchUrl));
       if (!validated.ok) {
         return jsonResponse({ error: validated.error || 'Invalid fetch URL' }, 400, corsHeaders);
       }
@@ -153,22 +176,13 @@ export async function onRequest(context) {
           offset += c.length;
         }
         arrayBuffer = buf.buffer;
-        contentType = fetchRes.headers.get('content-type') || 'image/png';
-
-        const urlObj = new URL(fetchUrl);
-        const pathExt = urlObj.pathname.split('.').pop();
-        if (pathExt && /^[a-zA-Z0-9]+$/.test(pathExt) && pathExt.length < 5) {
-          ext = pathExt.toLowerCase();
-        } else if (contentType.includes('svg')) {
-          ext = 'svg';
-        } else if (contentType.includes('icon') || contentType.includes('x-icon')) {
-          ext = 'ico';
-        } else if (contentType.includes('jpeg') || contentType.includes('jpg')) {
-          ext = 'jpg';
-        } else if (contentType.includes('webp')) {
-          ext = 'webp';
-        } else if (contentType.includes('gif')) {
-          ext = 'gif';
+        contentType = fetchRes.headers.get('content-type') || '';
+        ext = extFromMime(contentType);
+        if (!ext) {
+          return jsonResponse({ error: 'Unsupported image type' }, 415, corsHeaders);
+        }
+        if (ext === 'svg' && !looksLikeSvg(buf)) {
+          return jsonResponse({ error: 'Invalid SVG payload' }, 415, corsHeaders);
         }
         filename = `icon.${ext}`;
       } catch (fetchErr) {
@@ -178,9 +192,18 @@ export async function onRequest(context) {
       }
     } else {
       arrayBuffer = await file.arrayBuffer();
-      filename = file.name || 'icon.png';
-      contentType = file.type || 'image/png';
-      ext = filename.split('.').pop() || 'png';
+      if (arrayBuffer.byteLength > MAX_FILE_BYTES) {
+        return jsonResponse({ error: 'File too large' }, 413, corsHeaders);
+      }
+      contentType = file.type || '';
+      ext = extFromMime(contentType);
+      if (!ext) {
+        return jsonResponse({ error: 'Unsupported image type' }, 415, corsHeaders);
+      }
+      if (ext === 'svg' && !looksLikeSvg(new Uint8Array(arrayBuffer))) {
+        return jsonResponse({ error: 'Invalid SVG payload' }, 415, corsHeaders);
+      }
+      filename = `icon.${ext}`;
     }
 
     // 生成唯一 Key 并按分类存放

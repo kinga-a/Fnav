@@ -37,6 +37,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!domain) {
     return jsonResponse(res, 400, { error: 'Domain required' }, corsHeaders);
   }
+  if (!/^[a-z0-9.-]{1,253}$/i.test(domain) || domain.includes('..')) {
+    return jsonResponse(res, 400, { error: 'Invalid domain' }, corsHeaders);
+  }
 
   // Vercel 运行环境下使用重定向降级处理，保障性能与跨平台兼容
   const fallbackUrl = `https://www.faviconextractor.com/favicon/${encodeURIComponent(domain)}?larger=true`;

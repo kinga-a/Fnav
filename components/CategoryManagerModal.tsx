@@ -5,6 +5,8 @@ import { Category } from '../types';
 import Icon from './Icon';
 import IconSelector from './IconSelector';
 import CategoryActionAuthModal from './CategoryActionAuthModal';
+import { useDialogClose } from '../src/hooks/useDialogClose';
+import { useModalA11y } from '../src/hooks/useModalA11y';
 
 interface CategoryManagerModalProps {
   isOpen: boolean;
@@ -58,18 +60,9 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
   const migrateIdsRef = useRef<Set<string>>(new Set());
 
-  const [mounted, setMounted] = useState(isOpen);
-  const [closing, setClosing] = useState(false);
-  useEffect(() => {
-    if (isOpen) {
-      setMounted(true);
-      setClosing(false);
-    } else if (mounted) {
-      setClosing(true);
-      const t = setTimeout(() => { setMounted(false); setClosing(false); }, 200);
-      return () => clearTimeout(t);
-    }
-  }, [isOpen, mounted]);
+  const { closing, close } = useDialogClose(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalA11y(isOpen, close, panelRef);
 
   useEffect(() => {
     if (isOpen) {
@@ -79,7 +72,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
     }
   }, [isOpen, categories]);
 
-  if (!mounted) return null;
+  if (!isOpen) return null;
 
   const getTopLevelCategories = () => {
     return localCategories.filter(cat => !cat.isSubcategory && !cat.parentId);
@@ -162,7 +155,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
       }
       setHasChanges(false);
       toast.success('分类更改已保存');
-      onClose();
+      close();
     } catch (e) {
       console.error('Save failed:', e);
     } finally {
@@ -319,19 +312,19 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
 
   return (
     <>
-      <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-200 ${!closing ? 'modal-overlay' : ''} ${closing ? 'opacity-0' : 'opacity-100'}`}>
-        <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col max-h-[85dvh] transition-all duration-200 ${!closing ? 'modal-panel' : ''} ${closing ? 'opacity-0 translate-y-3 scale-95' : 'opacity-100 translate-y-0 scale-100'}`}>
-          <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700">
-            <h3 className="text-lg font-semibold dark:text-white">
+      <div className={`fixed inset-0 z-50 flex items-center justify-center px-4 py-[5dvh] bg-black/50 backdrop-blur-sm ${closing ? 'modal-overlay-out' : 'modal-overlay'}`}>
+        <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="category-modal-title" className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col h-full focus:outline-none ${closing ? 'modal-panel-out' : 'modal-panel'}`}>
+          <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
+            <h3 id="category-modal-title" className="text-lg font-semibold dark:text-white">
               分类管理
               {hasChanges && <span className="ml-2 text-sm text-amber-500">(有未保存的更改)</span>}
             </h3>
-            <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
+            <button onClick={close} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
               <X className="w-5 h-5 dark:text-slate-400" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto scrollbar-hide p-4 space-y-2">
             {(() => {
               const topLevelCategories = localCategories
                 .filter(cat => !cat.isSubcategory && !cat.parentId)
@@ -531,9 +524,9 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
             </div>
           </div>
 
-          <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex gap-3 justify-end">
+          <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex gap-3 justify-end shrink-0">
             <button
-              onClick={onClose}
+              onClick={close}
               className="px-4 py-2 text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
             >
               取消
@@ -557,7 +550,7 @@ const CategoryManagerModal: React.FC<CategoryManagerModalProps> = ({
                     <X size={20} />
                   </button>
                 </div>
-                <div className="flex-1 overflow-auto p-4">
+                <div className="flex-1 overflow-auto scrollbar-hide p-4">
                   <IconSelector
                     onSelectIcon={(iconName) => {
                       handleIconSelect(iconName);

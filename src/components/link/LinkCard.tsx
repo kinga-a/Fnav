@@ -155,6 +155,7 @@ function LinkCardInner({
     <div
       ref={mergedRef}
       data-color-ready="true"
+      data-morph-card={link.id}
       style={{
         ...style,
         '--icon-color': fallbackColor,
