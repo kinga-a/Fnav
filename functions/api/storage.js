@@ -457,10 +457,15 @@ export async function onRequest(context) {
         const existingCategories = existingData ? JSON.parse(existingData) : [];
         const existingPasswords = new Map(existingCategories.map(c => [c.id, c.password]));
 
-        const mergedCategories = body.categories.map(cat => ({
-          ...cat,
-          password: cat.password || existingPasswords.get(cat.id) || undefined,
-        }));
+        const mergedCategories = body.categories.map(cat => {
+          const { clearPassword, hasPassword, ...rest } = cat;
+          return {
+            ...rest,
+            password: clearPassword
+              ? undefined
+              : (rest.password || existingPasswords.get(cat.id) || undefined),
+          };
+        });
 
         await kv.put(STORAGE_KEYS.CATEGORIES_CONFIG_KEY, JSON.stringify(mergedCategories));
         return jsonResponse({ success: true }, 200, corsHeaders);
@@ -493,10 +498,15 @@ export async function onRequest(context) {
         const existingCategories = existingData ? JSON.parse(existingData) : [];
         const existingPasswords = new Map(existingCategories.map(c => [c.id, c.password]));
 
-        const mergedCategories = body.categories.map(cat => ({
-          ...cat,
-          password: cat.password || existingPasswords.get(cat.id) || undefined,
-        }));
+        const mergedCategories = body.categories.map(cat => {
+          const { clearPassword, hasPassword, ...rest } = cat;
+          return {
+            ...rest,
+            password: clearPassword
+              ? undefined
+              : (rest.password || existingPasswords.get(cat.id) || undefined),
+          };
+        });
 
         await kv.put(STORAGE_KEYS.CATEGORIES_CONFIG_KEY, JSON.stringify(mergedCategories));
         return jsonResponse({ success: true }, 200, corsHeaders);
@@ -508,10 +518,15 @@ export async function onRequest(context) {
         const existingCategories = existingData ? JSON.parse(existingData) : [];
         const existingPasswords = new Map(existingCategories.map(c => [c.id, c.password]));
 
-        const mergedCategories = body.categories.map(cat => ({
-          ...cat,
-          password: cat.password || existingPasswords.get(cat.id) || undefined,
-        }));
+        const mergedCategories = body.categories.map(cat => {
+          const { clearPassword, hasPassword, ...rest } = cat;
+          return {
+            ...rest,
+            password: clearPassword
+              ? undefined
+              : (rest.password || existingPasswords.get(cat.id) || undefined),
+          };
+        });
 
         await kv.put(STORAGE_KEYS.CATEGORIES_CONFIG_KEY, JSON.stringify(mergedCategories));
         return jsonResponse({ success: true }, 200, corsHeaders);

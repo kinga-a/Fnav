@@ -4,7 +4,49 @@
 
 import { getKV, getCorsHeaders, jsonResponse, verifyAuth, getAuthToken, validateExternalUrlAsync, safeFetchWithRedirects } from './_kvAdapter.js';
 
-const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024; // 下载备份上限 20MB
+const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024; // 上传/下载备份上限 20MB
+const BACKUP_FILE_RE = /^cloudnav_backup_\d{8}_\d{6}\.json$/;
+
+export function buildDirUrl(targetUrl, pathValue) {
+  const base = targetUrl.toString().replace(/\/+$/, '');
+  const safePath = String(pathValue || '').replace(/^\/+|\/+$/g, '');
+  if (safePath.includes('..') || !/^[A-Za-z0-9._\-\/]*$/.test(safePath)) return null;
+  return `${base}/${safePath ? `${safePath}/` : ''}`;
+}
+
+export function parseBackupFiles(xml) {
+  const names = new Set();
+  const hrefRe = /<(?:[a-zA-Z0-9]+:)?href[^>]*>([^<]+)<\/(?:[a-zA-Z0-9]+:)?href>/gi;
+  for (const match of xml.matchAll(hrefRe)) {
+    let href = match[1];
+    try { href = decodeURIComponent(href); } catch { /* keep raw */ }
+    const base = href.split('/').filter(Boolean).pop() || '';
+    if (BACKUP_FILE_RE.test(base)) names.add(base);
+  }
+  return [...names].sort().reverse();
+}
+
+export async function requestWithRetry(fetchUrl, init, attempts = 3) {
+  let lastError = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20000);
+    try {
+      const response = await safeFetchWithRedirects(fetchUrl, { ...init, signal: controller.signal }, 2);
+      if (response) return response;
+      // 被 SSRF 校验拦截，重试无意义
+      return null;
+    } catch (err) {
+      lastError = err;
+    } finally {
+      clearTimeout(timer);
+    }
+    if (attempt < attempts - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    }
+  }
+  throw lastError || new Error('WebDAV request failed');
+}
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -37,13 +79,13 @@ export async function onRequest(context) {
 
   try {
     const body = await request.json();
-    const { operation, config, payload } = body;
+    const { operation, config, payload, fileName } = body;
 
     if (!config || !config.url || !config.username || !config.password) {
       return jsonResponse({ error: 'Missing configuration' }, 400, corsHeaders);
     }
 
-    if (!['check', 'upload', 'download'].includes(operation)) {
+    if (!['check', 'upload', 'download', 'list', 'delete'].includes(operation)) {
       return jsonResponse({ error: 'Invalid operation' }, 400, corsHeaders);
     }
 
@@ -57,52 +99,65 @@ export async function onRequest(context) {
       return jsonResponse({ error: 'WebDAV 仅支持 HTTPS 地址' }, 400, corsHeaders);
     }
 
-    let baseUrl = validated.url.toString();
-    if (!baseUrl.endsWith('/')) baseUrl += '/';
+    const dirUrl = buildDirUrl(validated.url, config.path);
+    if (!dirUrl) {
+      return jsonResponse({ error: 'Invalid backup path' }, 400, corsHeaders);
+    }
 
-    const filename = 'cloudnav_backup.json';
-    const fileUrl = baseUrl + filename;
+    if ((operation === 'upload' || operation === 'download' || operation === 'delete') && !BACKUP_FILE_RE.test(String(fileName || ''))) {
+      return jsonResponse({ error: 'Invalid backup file name' }, 400, corsHeaders);
+    }
+
     const authHeader = `Basic ${btoa(`${config.username}:${config.password}`)}`;
-
-    let fetchUrl = baseUrl;
-    let method = 'PROPFIND';
-    let headers = {
+    const baseHeaders = {
       'Authorization': authHeader,
       'User-Agent': 'CloudNav/1.0',
     };
+
+    let fetchUrl = dirUrl;
+    let method = 'PROPFIND';
+    let headers = { ...baseHeaders };
     let requestBody = undefined;
 
-    if (operation === 'check') {
-      fetchUrl = baseUrl;
+    if (operation === 'check' || operation === 'list') {
+      fetchUrl = dirUrl;
       method = 'PROPFIND';
-      headers['Depth'] = '0';
+      headers['Depth'] = operation === 'list' ? '1' : '0';
     } else if (operation === 'upload') {
-      fetchUrl = fileUrl;
+      fetchUrl = dirUrl + fileName;
       method = 'PUT';
       headers['Content-Type'] = 'application/json';
       requestBody = JSON.stringify(payload || {});
-      if (requestBody.length > MAX_PAYLOAD_BYTES) {
+      const bodyBytes = new TextEncoder().encode(requestBody).length;
+      if (bodyBytes > MAX_PAYLOAD_BYTES) {
         return jsonResponse({ error: 'Payload too large' }, 413, corsHeaders);
       }
     } else if (operation === 'download') {
-      fetchUrl = fileUrl;
+      fetchUrl = dirUrl + fileName;
       method = 'GET';
+    } else if (operation === 'delete') {
+      fetchUrl = dirUrl + fileName;
+      method = 'DELETE';
     }
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 15000);
-
     // [安全] 逐跳校验跳转目标，防止 redirect 绕过协议/IP 白名单
-    const response = await safeFetchWithRedirects(fetchUrl, {
+    // 网络抖动时自动重试 3 次，缓解 InfiniCloud 等外部 WebDAV 偶发连接超时
+    const response = await requestWithRetry(fetchUrl, {
       method,
       headers,
       body: requestBody,
-      signal: controller.signal,
-    }, 2);
-    clearTimeout(timer);
+    }, 3);
 
     if (!response) {
       return jsonResponse({ error: 'Request blocked or failed' }, 502, corsHeaders);
+    }
+
+    if (operation === 'list') {
+      if (!response.ok) {
+        return jsonResponse({ error: `WebDAV Error: ${response.status}` }, response.status, corsHeaders);
+      }
+      const xml = await response.text();
+      return jsonResponse({ success: true, files: parseBackupFiles(xml) }, 200, corsHeaders);
     }
 
     if (operation === 'download') {
@@ -117,7 +172,12 @@ export async function onRequest(context) {
         return jsonResponse({ error: 'Backup file too large' }, 413, corsHeaders);
       }
       const data = await response.json();
-      return jsonResponse(data, 200, corsHeaders);
+      return jsonResponse({ success: true, data }, 200, corsHeaders);
+    }
+
+    if (operation === 'delete') {
+      const success = response.ok || response.status === 204;
+      return jsonResponse({ success, status: response.status }, 200, corsHeaders);
     }
 
     const success = response.ok || response.status === 207;

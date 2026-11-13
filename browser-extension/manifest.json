@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Fnav Bookmark Manager",
-  "version": "1.1.2",
+  "version": "1.1.1",
   "description": "Fnav 书签管理扩展，支持查看和保存书签到 Fnav 导航站",
   "permissions": [
     "activeTab",
