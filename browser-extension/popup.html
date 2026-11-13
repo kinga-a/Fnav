@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fnav Bookmark Manager</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="app">
+  <div class="header">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+    </svg>
+    <h1>Fnav Bookmark Manager</h1>
+  </div>
+
+  <div class="main">
+    <!-- 导航标签 -->
+    <div class="tabs">
+      <button id="addTab" class="tab-btn active">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        保存书签
+      </button>
+      <button id="viewTab" class="tab-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9,22 9,12 15,12 15,22"/>
+        </svg>
+        查看书签
+      </button>
+      <button id="settingsTab" class="tab-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v6m0 6v6m4.22-10.22l4.24-4.24M6.34 6.34L2.1 2.1m17.8 17.8l-4.24-4.24M6.34 17.66l-4.24 4.24M23 12h-6m-6 0H1m20.07-4.93l-4.24 4.24M6.34 6.34l-4.24-4.24"/>
+        </svg>
+        设置
+      </button>
+    </div>
+
+    <!-- 查看书签部分 - 按分类折叠 -->
+    <div id="viewSection" class="section">
+      <!-- 搜索栏 -->
+      <div class="search-bar">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="搜索书签标题或网址...">
+      </div>
+
+      <!-- 筛选工具栏 -->
+      <div class="toolbar">
+        <select id="categoryFilter" class="filter-select">
+          <option value="">全部分类</option>
+        </select>
+        <button id="refreshBtn" class="icon-btn" title="刷新">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23,4 23,10 17,10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 分类折叠列表 -->
+      <div id="categoryTree" class="category-tree">
+        <div class="loading">
+          <div class="spinner"></div>
+          <span>加载分类中...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 保存书签部分 -->
+    <div id="addSection" class="section active">
+      <div class="form-group">
+        <label>保存类型</label>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" id="currentTab" name="linkType" value="current" checked>
+            <label for="currentTab">当前页面</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="custom" name="linkType" value="custom">
+            <label for="custom">自定义</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- 当前页面信息 -->
+      <div id="currentPageSection">
+        <div class="page-info">
+          <div style="font-weight: 500; margin-bottom: 4px; color: var(--text-2);">当前页面</div>
+          <div id="pageTitle" style="font-weight: 600; color: var(--text);">获取中...</div>
+          <div id="pageUrl" style="font-size: 12px; color: var(--text-3); word-break: break-all; margin-top: 4px;">获取中...</div>
+        </div>
+        <button id="cleanUrlBtn" class="btn btn-secondary btn-sm" type="button" title="去除 URL 中的追踪参数">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M8 6h12M6 12h12M4 18h12"/>
+          </svg>
+          净化链接
+        </button>
+      </div>
+
+      <!-- 自定义链接信息 -->
+      <div id="customLinkSection" class="hidden">
+        <div class="form-group">
+          <label for="customTitle">标题 <span class="required">*</span></label>
+          <input type="text" id="customTitle" placeholder="输入链接标题">
+        </div>
+
+        <div class="form-group">
+          <label for="customUrl">URL <span class="required">*</span></label>
+          <input type="url" id="customUrl" placeholder="https://example.com">
+        </div>
+
+        <div class="form-group">
+          <label for="customDescription">说明</label>
+          <textarea id="customDescription" rows="2" placeholder="输入链接说明（可选）"></textarea>
+        </div>
+      </div>
+
+      <!-- 分类选择 - 支持二级分类 -->
+      <div class="form-group">
+        <label for="categorySelect">选择分类 <span class="required">*</span></label>
+        <select id="categorySelect">
+          <option value="">请先配置并加载分类</option>
+        </select>
+        <div class="loading" id="categoryLoading" style="display: none;">
+          <div class="spinner"></div>
+          <span>加载分类中...</span>
+        </div>
+      </div>
+
+      <div id="status" class="status show idle">等待操作</div>
+
+      <div class="form-actions">
+        <button id="saveBookmarkBtn" class="btn btn-primary" disabled>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+            <polyline points="9,11 12,14 22,4"/>
+          </svg>
+          保存书签
+        </button>
+      </div>
+    </div>
+
+    <!-- 设置部分 -->
+    <div id="settingsSection" class="section">
+      <div class="form-group">
+        <label for="apiUrl">Fnav 域名</label>
+        <input type="text" id="apiUrl" placeholder="例如: nav.example.com">
+        <div class="help-text">输入 Fnav 部署地址，需要保留 http(s)://</div>
+      </div>
+
+      <div class="form-group">
+        <label>部署平台</label>
+        <div class="radio-group">
+          <div class="radio-option">
+            <input type="radio" id="edgeone" name="platform" value="edgeone" checked>
+            <label for="edgeone">EdgeOne/Docker</label>
+          </div>
+          <div class="radio-option">
+            <input type="radio" id="cloudflare" name="platform" value="cloudflare">
+            <label for="cloudflare">Cloudflare</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="password">访问密码</label>
+        <input type="password" id="password" placeholder="输入 PASSWORD 环境变量">
+        <div class="help-text">部署时设置的管理密码</div>
+      </div>
+
+      <div class="form-actions">
+        <button id="testBtn" class="btn btn-secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20,6 9,17 4,12"/>
+          </svg>
+          测试连接
+        </button>
+        <button id="saveConfigBtn" class="btn btn-primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"/>
+            <polyline points="9,11 12,14 22,4"/>
+          </svg>
+          保存配置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

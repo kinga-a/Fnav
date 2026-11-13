@@ -187,11 +187,16 @@ export async function onRequest(context) {
     };
     const websiteCfg = await readWebsiteConfig();
 
-    // 清理旧 Token（单设备模式：新登录踢掉旧会话）
+    // 按客户端类型隔离单设备会话：网页（web）与浏览器扩展（extension）各自维护一个 Token
+    // 扩展保存链接时不会再踢掉网页登录；同一类型内仍保持单设备语义
+    const clientType = body.client === 'extension' ? 'extension' : 'web';
+    const tokenKey = clientType === 'extension' ? 'last_token:extension' : 'last_token';
+
+    // 清理该客户端类型的旧 Token
     // singleDevice 默认 true（开启单设备），仅当配置明确为 false 时允许多设备同时在线
     if (websiteCfg.singleDevice !== false) {
       try {
-        const oldToken = await kv.get('last_token');
+        const oldToken = await kv.get(tokenKey);
         if (oldToken) {
           await kv.delete(`auth_token:${oldToken}`);
         }
@@ -221,8 +226,8 @@ export async function onRequest(context) {
     const kvOptions = expirationTtl ? { expirationTtl } : {};
     await kv.put(`auth_token:${token}`, 'valid', kvOptions);
 
-    // 记录当前 Token（用于下次登录时清理）
-    await kv.put('last_token', token, kvOptions);
+    // 记录当前类型的 Token（用于下次同类型登录时清理）
+    await kv.put(tokenKey, token, kvOptions);
 
     return jsonResponse({
       success: true,

@@ -13,13 +13,15 @@
 > 原项目：[eallion/favorite](https://github.com/eallion/favorite)
 
 > [!IMPORTANT]
-> **v1.1.2（2026-11）更新概要**
+> **v1.1.4（2026-11）更新概要**
 >
 > - **界面**：三个管理弹窗统一尺寸；新增打开/关闭动效；弹窗滚动条隐藏；Toast 移至左上角并改为 70% 半透明毛玻璃；简约 ↔ 详情卡片形变动画；添加链接表单增加空值校验；四个弹窗支持 Esc 关闭、焦点陷阱与焦点恢复。
 > - **性能**：静态资源启用 br/gzip（首屏 JS 379KB → 113KB）；四个 Context 的 value 增加 `useMemo`；卡片形变使用原生 Web Animations API，无新增依赖。
 > - **安全**：favicon 写入鉴权与 SVG 安全响应、分类密码改用 HMAC 解锁令牌、SSRF DNS/IP 校验、登录限流改用真实 IP、请求体/上传 2MB 上限、安全响应头统一、浏览器扩展 CORS 白名单、移除“密码当 Bearer”。
-> - **多平台**：EdgeOne Makers 适配（自动生成 `cloud-functions/`）、Cloudflare Functions 构建验证通过、Vercel `api/*.ts` 同步安全修复。
-> - **注意**：v1.1.2 起管理员密码已轮换，旧密码与旧会话全部失效，需要重新登录。
+> - **扩展白名单**：`ALLOWED_EXTENSION_IDS` 新增 `off` / `*` / `all`，可临时放行所有 Chrome/Firefox 扩展；不填仍默认拒绝。
+> - **单设备会话隔离**：网页与浏览器扩展各自维护 Token，扩展保存链接不再把网页踢下线（扩展 1.1.2）。
+> - **多平台**：EdgeOne Makers 适配（自动生成 `cloud-functions/`）、Cloudflare Functions 构建验证通过、Vercel `api/*.ts` 同步安全修复与扩展 CORS。
+> - **注意**：自 v1.1.2 起管理员密码已轮换，旧密码与旧会话全部失效；自 v1.1.3 起打包版本按 v1.1.4、v1.1.5… 依次递增（当前 v1.1.4）。
 
 > [!NOTE]
 > **基于 EdgeOne Pages 开发。对 Cloudflare Pages 和 Vercel 只进行过简单地测试。**
@@ -67,17 +69,37 @@ functions/api/ 是 EdgeOne 的边缘函数，必须随本次一起部署，否�
 
 [![](screenshots/ChromeStore.png)](https://chromewebstore.google.com/detail/nepjakfedadjkpjpideoaobngonilmoi) [![](screenshots/FirefoxAddon.png)](https://addons.mozilla.org/zh-CN/firefox/addon/favorite-assistant/)
 
-> **扩展接入配置（v1.1.2 起）**：CORS 改为扩展 ID 白名单，默认拒绝所有扩展跨源请求。请把扩展 ID 填入环境变量 `ALLOWED_EXTENSION_IDS`：
+> **扩展接入配置（v1.1.2 起，v1.1.3 支持 off/*）**：CORS 改为扩展 ID 白名单，默认拒绝所有扩展跨源请求。请把扩展 ID 填入环境变量 `ALLOWED_EXTENSION_IDS`：
 >
 > - Chrome：扩展管理页 → 开发者模式 → 复制 32 位扩展 ID（如 `abcdefghijklmnopabcdefghijklmnop`）
 > - Firefox：`about:debugging` → 复制 `moz-extension://` 后的 UUID
 > - 多个用逗号分隔：`ALLOWED_EXTENSION_IDS=chromeid1,firefox-uuid`
 >
 > **临时放行所有扩展**：设置 `ALLOWED_EXTENSION_IDS=*`（或 `off` / `all`）即可放行任意 `chrome-extension://` / `moz-extension://` 源。这会让任意已安装扩展读取匿名 API 数据（书签标题/URL/分类等，私人书签仍被过滤；管理操作仍需 Token），仅建议调试或完全信任本机扩展时使用，用完请改回真实 ID 白名单。
+>
+> **扩展 1.1.2（v1.1.4 配套）**：扩展不再把管理密码直接当作 `x-auth-password` 发送，而是先调用 `/api/auth` 换取 Token，再以 `Authorization: Bearer <token>` 访问；Token 失效时会自动用保存的密码重新登录。登录请求携带 `client: 'extension'`，与网页会话隔离，保存链接不会导致网页退出。
+>
+> - **保存链接 401**：旧版扩展（≤1.1.0）或服务端清理过会话时会出现；请更新到扩展 1.1.2，并在 `chrome://extensions` 中重新加载解压目录。
+> - **看不到私人书签**：私人书签只在有效 Token（登录态）下返回；Token 失效时服务端按匿名过滤，扩展会自动重登后恢复。
+> - **CORS**：扩展已声明 `host_permissions`，一般不受 CORS 限制；若仍被拦截，请配置 `ALLOWED_EXTENSION_IDS`（或临时 `*`）。
 
 ## 🆕 版本与更新日志
 
-### v1.1.2（2026-11，当前版本）
+### v1.1.4（2026-11，当前版本）
+
+- 单设备会话按客户端类型隔离：网页（`web`）与浏览器扩展（`extension`）各自维护一个 Token
+- 扩展登录请求携带 `client: 'extension'`，扩展保存链接不再踢掉网页登录；同一类型内仍保持单设备
+- Vercel `api/auth.ts` 同步按客户端类型清理/记录 Token
+- 扩展升级到 1.1.2（自动换 Token + 会话隔离）
+
+### v1.1.3
+
+- 浏览器扩展 CORS 白名单新增 `off` / `*` / `all` 语义：放行任意 `chrome-extension://` / `moz-extension://`（默认仍拒绝，开启后任意扩展可读取匿名数据，管理操作仍需 Token）
+- Vercel `api/_kvHelper.ts` 的扩展 CORS 与 EdgeOne / Cloudflare / Docker 对齐（同样支持 ID 白名单与 `off` / `*`）
+- README 更新环境变量、扩展接入、安全说明与发布包说明
+- **版本规则**：自 v1.1.3 起每次打包递增（v1.1.4、v1.1.5…），更新日志按版本累积
+
+### v1.1.2
 
 **界面与交互**
 - 设置面板、分类管理、备份与恢复统一为桌面 672×810 / 移动端 358×760，上下留白各 5dvh
@@ -343,6 +365,7 @@ vercel dev
 - 打包前执行：`pnpm build && node scripts/prepare-edgeone.mjs`
 - 发布包不应包含：`.env`（含明文密码）、`data/`（含 Token 与运行数据）、`node_modules/`、`cloud-functions/`（构建生成）、`.wrangler/`
 - 首次部署必须设置 `PASSWORD`；v1.1.2 已轮换密码并清理旧 Token，升级后需要重新登录
+- 自 v1.1.3 起打包版本按 v1.1.4、v1.1.5… 依次递增，发布前同步更新 `package.json` 与 README 更新日志
 - 若曾把旧版 `.env` 或 `data/` 打进包里，请立即修改密码并删除已分发的 Token
 
 ## Inspiration
