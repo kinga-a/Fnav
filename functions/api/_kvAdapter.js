@@ -71,15 +71,17 @@ export function getCorsHeaders(env, request) {
   const reqOrigin = request?.headers?.get('origin');
   if (!reqOrigin) return headers;
 
-  // 浏览器扩展源（chrome-extension://<扩展ID>）：扩展 ID 随本机安装而变，
-  // 无法预写白名单，放行该前缀源。受保护数据仍由鉴权/过滤把关
-  // （密码分类 403、isPrivate 剔除、管理操作需密码、?key= 需鉴权），不新增泄露面。
+  // 浏览器扩展源（chrome-extension:// / moz-extension://）：
+  // 默认只放行 ALLOWED_EXTENSION_IDS 中列出的 ID；
+  // 设为 off / * / all 时放行所有扩展（仅建议调试或完全信任本机扩展时使用）。
+  const extensionSetting = String(env?.ALLOWED_EXTENSION_IDS || env?.CHROME_EXTENSION_IDS || '').trim().toLowerCase();
+  const allowAllExtensions = ['off', '*', 'all'].includes(extensionSetting);
   const extensionMatch = /^(chrome-extension|moz-extension):\/\/([a-p]{32}|[a-f0-9-]{36})$/i.exec(reqOrigin);
-  const allowedExtensions = (env?.ALLOWED_EXTENSION_IDS || env?.CHROME_EXTENSION_IDS || '')
+  const allowedExtensions = extensionSetting
     .split(',')
     .map(s => s.trim())
     .filter(Boolean);
-  if (extensionMatch && allowedExtensions.includes(extensionMatch[2])) {
+  if (extensionMatch && (allowAllExtensions || allowedExtensions.includes(extensionMatch[2]))) {
     headers['Access-Control-Allow-Origin'] = reqOrigin;
     headers['Vary'] = 'Origin';
     return headers;

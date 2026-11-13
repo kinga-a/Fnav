@@ -73,7 +73,7 @@ functions/api/ 是 EdgeOne 的边缘函数，必须随本次一起部署，否�
 > - Firefox：`about:debugging` → 复制 `moz-extension://` 后的 UUID
 > - 多个用逗号分隔：`ALLOWED_EXTENSION_IDS=chromeid1,firefox-uuid`
 >
-> 未配置时扩展无法读取 API（浏览器会拦截跨源响应），同源页面访问不受影响。
+> **临时放行所有扩展**：设置 `ALLOWED_EXTENSION_IDS=*`（或 `off` / `all`）即可放行任意 `chrome-extension://` / `moz-extension://` 源。这会让任意已安装扩展读取匿名 API 数据（书签标题/URL/分类等，私人书签仍被过滤；管理操作仍需 Token），仅建议调试或完全信任本机扩展时使用，用完请改回真实 ID 白名单。
 
 ## 🆕 版本与更新日志
 
@@ -103,7 +103,7 @@ functions/api/ 是 EdgeOne 的边缘函数，必须随本次一起部署，否�
 - 请求体 2MB、上传 2MB、MIME 白名单、SVG 内容校验
 - 静态路径 `realpath` 校验、书签导入仅 http/https、WebDAV 强制 HTTPS
 - 安全响应头统一（CSP/HSTS/nosniff/X-Frame-Options/Referrer-Policy/Permissions-Policy）
-- 浏览器扩展 CORS 改为 ID 白名单（`ALLOWED_EXTENSION_IDS`）
+- 浏览器扩展 CORS 改为 ID 白名单（`ALLOWED_EXTENSION_IDS`）；设为 `off` / `*` / `all` 时放行所有扩展（高风险，默认拒绝）
 - 管理员密码已轮换，旧 Token 已清理
 
 **多平台**
@@ -248,7 +248,7 @@ docker compose up -d --build
 |------|------|------|--------|
 | `PASSWORD` | 管理后台登录密码 | 是 | - |
 | `ALLOWED_ORIGIN` | 跨源访问白名单，多个用逗号分隔，**必须带协议**（如 `https://sq.y11.fun`）。不填则仅允许同源访问 | 否 | 仅同源（无 `*` 兜底） |
-| `ALLOWED_EXTENSION_IDS` | 允许访问 API 的浏览器扩展 ID（Chrome 32 位 ID 或 Firefox UUID），多个用逗号分隔。不填则拒绝所有扩展跨源请求 | 否 | 空（拒绝） |
+| `ALLOWED_EXTENSION_IDS` | 允许访问 API 的浏览器扩展 ID（Chrome 32 位 ID 或 Firefox UUID），多个用逗号分隔；设为 `off` / `*` / `all` 时放行所有扩展（高风险，仅调试或完全信任本机扩展时使用）。不填则拒绝所有扩展跨源请求 | 否 | 空（拒绝） |
 | `CATEGORY_UNLOCK_SECRET` | 分类解锁令牌的 HMAC 密钥，不填则回退使用 `PASSWORD` | 否 | `PASSWORD` |
 | `UPLOAD_PLATFORM` | 上传与图标存储平台，部署到 Cloudflare 时可设为 `cloudflare` | 否 | - |
 
@@ -277,7 +277,7 @@ docker compose up -d --build
 - **XSS/图标安全**：favicon 仅回显白名单图片类型，SVG 以 `image/svg+xml` + `nosniff` + `CSP: default-src 'none'; sandbox` 返回；上传限制 2MB、按 MIME 推导扩展名并校验 SVG 内容；Mastodon 内联 HTML 的允许标签内容会转义。
 - **请求体与上传上限**：Node 服务器请求体上限 2MB（超出 413），上传文件上限 2MB，外部抓取上限 2MB。
 - **安全响应头**：静态资源（`public/_headers`、`edgeone.json`、`vercel.json`）与 API 统一响应均启用 CSP、HSTS、`X-Content-Type-Options`、`X-Frame-Options`、`Referrer-Policy`、`Permissions-Policy`；主题初始化脚本已外置为 `/theme-init.js`，CSP 不再需要 `script-src 'unsafe-inline'`。
-- **CORS 白名单**：默认仅同源放行，跨源需在 `ALLOWED_ORIGIN` 中精确声明（无 `*` 兜底），浏览器扩展需在 `ALLOWED_EXTENSION_IDS` 中声明扩展 ID。
+- **CORS 白名单**：默认仅同源放行，跨源需在 `ALLOWED_ORIGIN` 中精确声明（无 `*` 兜底），浏览器扩展需在 `ALLOWED_EXTENSION_IDS` 中声明扩展 ID；设为 `off` / `*` / `all` 会放行所有扩展（高风险，仅调试用）。
 
 > ⚠️ **部署提醒**：
 > 1. EdgeOne / Cloudflare / Vercel 部署后，如需跨源访问请设置 `ALLOWED_ORIGIN=https://<你的域名>`；使用浏览器扩展时需设置 `ALLOWED_EXTENSION_IDS=<扩展ID>`（Chrome 32 位 ID / Firefox UUID）。
