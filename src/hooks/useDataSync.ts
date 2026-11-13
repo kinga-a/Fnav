@@ -158,8 +158,8 @@ export function useDataSync() {
     const unlockedChanged = unlockedKey !== prevUnlockedKey.current;
     prevAuthToken.current = authToken;
     prevUnlockedKey.current = unlockedKey;
-    // 登录成功，或已登录状态下解锁了密码分类 → 重新加载完整数据
-    if ((wasLoggedOut && authToken) || (authToken && unlockedChanged)) {
+    // 登录成功，或解锁/锁定密码分类变化 → 重新加载完整数据（匿名解锁同样生效）
+    if ((wasLoggedOut && authToken) || unlockedChanged) {
       initialized.current = false; // 允许 initData 重跑
       initData(unlockedCategoryIds);
     }

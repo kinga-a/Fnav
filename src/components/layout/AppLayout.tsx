@@ -14,6 +14,7 @@ import { Header } from './Header';
 import { Sidebar } from './Sidebar';
 import { MainContent } from './MainContent';
 import { LinkItem, Category } from '../../../types';
+import { STORAGE_KEYS } from '../../constants';
 import AuthModal from '../../../components/AuthModal';
 
 const LinkModal = lazy(() => import('../../../components/LinkModal'));
@@ -407,11 +408,28 @@ export function AppLayout() {
     else scrollToCategory(cat.id);
   }, [unlockedCategoryIds]);
 
-  const handleCategoryUnlock = useCallback((id: string) => {
-    unlockCategory(id); setCatAuthModalData(null);
-    const newUnlocked = new Set([...unlockedCategoryIds, id]);
-    initData(newUnlocked);
-  }, [unlockCategory, unlockedCategoryIds, initData]);
+  const handleCategoryUnlock = useCallback((id: string, unlockedLinks: LinkItem[] = []) => {
+    unlockCategory(id);
+    setCatAuthModalData(null);
+
+    // 立即合并解锁分类的书签，避免必须刷新页面才显示
+    if (unlockedLinks.length > 0) {
+      const incomingIds = new Set(unlockedLinks.map((link) => link.id));
+      const mergedLinks = [...links.filter((link) => !incomingIds.has(link.id)), ...unlockedLinks];
+      updateLinks(mergedLinks);
+
+      // 同步本地缓存，防止后续写回或重新加载时丢失刚解锁的书签
+      try {
+        const cached = JSON.parse(localStorage.getItem(STORAGE_KEYS.LOCAL_STORAGE_KEY) || '{}');
+        const cachedLinks: LinkItem[] = Array.isArray(cached.links) ? cached.links : [];
+        localStorage.setItem(STORAGE_KEYS.LOCAL_STORAGE_KEY, JSON.stringify({
+          ...cached,
+          links: [...cachedLinks.filter((link) => !incomingIds.has(link.id)), ...unlockedLinks],
+          categories: cached.categories || categories,
+        }));
+      } catch {}
+    }
+  }, [unlockCategory, links, categories, updateLinks]);
 
   if (isInitialLoading) {
     return (
