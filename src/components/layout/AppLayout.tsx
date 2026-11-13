@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, Suspense, lazy, useCallback, useRef } from 'react';
 import { FolderInput, Pin, PinOff, Copy, CheckSquare, Trash2, X, ChevronDown, Sparkles } from 'lucide-react';
 import { useAuthContext } from '../../contexts/AuthContext';
 import { useLinksContext } from '../../contexts/LinksContext';
@@ -8,6 +8,7 @@ import { useSearch } from '../../hooks/useSearch';
 import { useDataSync } from '../../hooks/useDataSync';
 import { scrollToCategory } from '../../utils/scrollToCategory';
 import { normalizeUrlForDedup } from '../../utils/urlDuplicate';
+import { playCardMorph } from '../../utils/layoutMorph';
 import { toast } from '../../../components/Toast';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
@@ -37,6 +38,10 @@ export function AppLayout() {
     isInternal, setIsInternal, handleSearch, visitorEngineId, setVisitorEngineId
   } = useSearch();
   const { initData } = useDataSync();
+
+  useLayoutEffect(() => {
+    playCardMorph();
+  }, [viewMode]);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);

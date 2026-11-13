@@ -40,6 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return jsonResponse(res, 400, { error: validated.error || 'Invalid target URL' }, corsHeaders);
     }
     const targetUrl: URL = validated.url;
+    if (targetUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(targetUrl.hostname)) {
+      return jsonResponse(res, 400, { error: 'WebDAV 仅支持 HTTPS 地址' }, corsHeaders);
+    }
 
     let baseUrl = targetUrl.toString();
     if (!baseUrl.endsWith('/')) baseUrl += '/';

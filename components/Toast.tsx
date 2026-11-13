@@ -73,24 +73,23 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 2000, 
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={`
         toast-item relative flex items-center gap-3 pl-3 pr-9 py-3 rounded-2xl border
-        bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl
+        bg-white/70 dark:bg-slate-800/70 backdrop-blur-2xl backdrop-saturate-150
         border-slate-200/70 dark:border-slate-700/50
         shadow-lg ${config.shadow}
         max-w-sm
         ${isExiting ? 'toast-exit' : ''}
       `}
     >
-      {/* 图标圆形背景 */}
       <div className={`flex-shrink-0 w-8 h-8 rounded-full ${config.iconBg} flex items-center justify-center shadow-sm`}>
         {config.icon}
       </div>
-      {/* 消息文本 */}
       <div className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 leading-snug">
         {message}
       </div>
-      {/* 关闭按钮 */}
       <button
         onClick={handleClose}
         className="absolute top-1.5 right-1.5 p-1 rounded-lg text-slate-300 hover:text-slate-500 dark:text-slate-600 dark:hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors"
@@ -98,7 +97,6 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 2000, 
       >
         <X size={14} />
       </button>
-      {/* 自动消失进度条 */}
       {duration > 0 && (
         <div className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full overflow-hidden opacity-50">
           <div
@@ -113,8 +111,8 @@ const Toast: React.FC<ToastProps> = ({ message, type = 'info', duration = 2000, 
 
 export const ToastContainer: React.FC<{ toasts: ToastItem[]; onRemove: (id: string) => void }> = ({ toasts, onRemove }) => {
   return (
-    <div className="fixed top-6 right-4 z-[9999] flex flex-col items-end gap-2.5 pointer-events-none">
-      <div className="flex flex-col items-end gap-2.5 pointer-events-auto">
+    <div className="fixed top-6 left-4 z-[9999] flex flex-col items-start gap-2.5 pointer-events-none">
+      <div className="flex flex-col items-start gap-2.5 pointer-events-auto">
         {toasts.map((toast) => (
           <Toast
             key={toast.id}

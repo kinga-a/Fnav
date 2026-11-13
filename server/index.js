@@ -16,6 +16,7 @@
 import http from 'node:http';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -137,6 +138,8 @@ function buildEnv() {
   return {
     PASSWORD: process.env.PASSWORD || '',
     ALLOWED_ORIGIN: process.env.ALLOWED_ORIGIN || '',
+    ALLOWED_EXTENSION_IDS: process.env.ALLOWED_EXTENSION_IDS || '',
+    CATEGORY_UNLOCK_SECRET: process.env.CATEGORY_UNLOCK_SECRET || '',
     STORAGE_BACKEND,
     UPLOAD_PLATFORM: process.env.UPLOAD_PLATFORM || '',
     CLOUDNAV_KV: kv,
@@ -144,6 +147,8 @@ function buildEnv() {
 }
 
 // ============ HTTP 请求/响应转换 ============
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+
 async function toWebRequest(req, url) {
   const headers = new Headers();
   for (const [k, v] of Object.entries(req.headers)) {
@@ -151,10 +156,26 @@ async function toWebRequest(req, url) {
     headers.set(k, Array.isArray(v) ? v.join(', ') : v);
   }
 
+  // 默认不信任客户端可伪造的代理头，以 socket 真实地址为准
+  if (process.env.TRUST_PROXY !== '1') {
+    headers.set('x-real-ip', req.socket?.remoteAddress || 'unknown');
+    headers.delete('x-forwarded-for');
+    headers.delete('cf-connecting-ip');
+  }
+
   let body;
   if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
     const chunks = [];
-    for await (const chunk of req) chunks.push(chunk);
+    let total = 0;
+    for await (const chunk of req) {
+      total += chunk.length;
+      if (total > MAX_BODY_BYTES) {
+        const error = new Error('Payload Too Large');
+        error.code = 'PAYLOAD_TOO_LARGE';
+        throw error;
+      }
+      chunks.push(chunk);
+    }
     body = Buffer.concat(chunks);
   }
 
@@ -196,7 +217,17 @@ async function handleApi(req, res, url, pathname) {
     return sendJson(res, 404, { error: 'Not Found' });
   }
   const { onRequest } = await import(path.join(ROOT, 'functions', 'api', handlerFile));
-  const request = await toWebRequest(req, url);
+  let request;
+  try {
+    request = await toWebRequest(req, url);
+  } catch (err) {
+    if (err?.code === 'PAYLOAD_TOO_LARGE') {
+      sendJson(res, 413, { error: 'Payload Too Large' });
+      req.destroy();
+      return;
+    }
+    throw err;
+  }
   const response = await onRequest({ request, env: buildEnv() });
   await sendWebResponse(res, response);
 }
@@ -224,10 +255,39 @@ const MIME_TYPES = {
   '.map': 'application/json',
 };
 
+const COMPRESSIBLE_EXT = new Set(['.html', '.js', '.mjs', '.css', '.json', '.svg', '.txt', '.xml', '.webmanifest']);
+
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; frame-ancestors 'none'; base-uri 'self'; object-src 'none'",
+};
+
+const compressedCache = new Map();
+
+function getCompressed(filePath, data, encoding) {
+  const cacheKey = `${filePath}:${encoding}`;
+  const cached = compressedCache.get(cacheKey);
+  if (cached) return cached;
+  const result = encoding === 'br'
+    ? zlib.brotliCompressSync(data, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 5 } })
+    : zlib.gzipSync(data, { level: 6 });
+  compressedCache.set(cacheKey, result);
+  return result;
+}
+
 async function serveStatic(req, res, url, pathname) {
-  // 防路径穿越：规范化后必须仍在 DIST_DIR 内
-  let filePath = path.normalize(path.join(DIST_DIR, pathname === '/' ? 'index.html' : pathname));
-  if (!filePath.startsWith(DIST_DIR)) {
+  const distRoot = await fs.realpath(DIST_DIR).catch(() => DIST_DIR);
+  let filePath = path.normalize(path.join(distRoot, pathname === '/' ? 'index.html' : pathname));
+
+  const withinDist = (candidate) => {
+    const rel = path.relative(distRoot, candidate);
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  };
+
+  if (!withinDist(filePath)) {
     return sendJson(res, 403, { error: 'Forbidden' });
   }
 
@@ -237,22 +297,45 @@ async function serveStatic(req, res, url, pathname) {
       filePath = path.join(filePath, 'index.html');
       await fs.stat(filePath);
     }
+    const realPath = await fs.realpath(filePath);
+    if (!withinDist(realPath)) {
+      return sendJson(res, 403, { error: 'Forbidden' });
+    }
+    filePath = realPath;
   } catch {
     // 文件不存在：SPA fallback 到 index.html（排除带扩展名的资源请求）
     if (path.extname(pathname)) {
       return sendJson(res, 404, { error: 'Not Found' });
     }
-    filePath = path.join(DIST_DIR, 'index.html');
+    filePath = path.join(distRoot, 'index.html');
+    const realIndex = await fs.realpath(filePath).catch(() => filePath);
+    if (!withinDist(realIndex)) {
+      return sendJson(res, 403, { error: 'Forbidden' });
+    }
+    filePath = realIndex;
   }
 
   try {
     const data = await fs.readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, {
+    const headers = {
       'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
       'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
-    });
-    res.end(data);
+      'Vary': 'Accept-Encoding',
+      ...SECURITY_HEADERS,
+    };
+    let body = data;
+    if (COMPRESSIBLE_EXT.has(ext) && data.length > 1024) {
+      const accept = String(req.headers['accept-encoding'] || '');
+      const encoding = /\bbr\b/.test(accept) ? 'br' : /\bgzip\b/.test(accept) ? 'gzip' : '';
+      if (encoding) {
+        body = getCompressed(filePath, data, encoding);
+        headers['Content-Encoding'] = encoding;
+      }
+    }
+    headers['Content-Length'] = body.length;
+    res.writeHead(200, headers);
+    res.end(body);
   } catch {
     return sendJson(res, 404, { error: 'Not Found' });
   }

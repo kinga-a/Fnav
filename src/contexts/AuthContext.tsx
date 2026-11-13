@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useReducer, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useCallback, useEffect, useMemo } from 'react';
 import { STORAGE_KEYS, API_ENDPOINTS } from '../constants';
 
 // --- Types ---
@@ -141,8 +141,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
+  const contextValue = useMemo(
+    () => ({ ...state, login, logout, checkAuth }),
+    [state, login, logout, checkAuth],
+  );
+
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, checkAuth }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

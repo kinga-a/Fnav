@@ -186,15 +186,20 @@ export function LinksProvider({ children }: { children: React.ReactNode }) {
       });
   }, [visibleLinks]);
 
-  return (
-    <LinksContext.Provider value={{
+  const contextValue = useMemo(
+    () => ({
       ...state,
       initLinks,
       addLink, updateLink, deleteLink, deleteLinks, updateLinks,
       setLinksAndSync,
       pinnedLinks,
       getLinksByCategory,
-    }}>
+    }),
+    [state, initLinks, addLink, updateLink, deleteLink, deleteLinks, updateLinks, setLinksAndSync, pinnedLinks, getLinksByCategory],
+  );
+
+  return (
+    <LinksContext.Provider value={contextValue}>
       {children}
     </LinksContext.Provider>
   );

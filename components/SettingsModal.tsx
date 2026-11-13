@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Save, Settings, Clock, LayoutGrid, MessageCircle, Cloud, BookOpen, Upload, CloudCog, LogOut, Loader2, Plus, Trash2, Search, ShieldCheck } from 'lucide-react';
 import { AIConfig, PasswordExpiryConfig, TickerConfig, WeatherConfig, WeatherProvider, TickerSource, SearchConfig, IconConfig } from '../types';
 import { toast } from './Toast';
 import { SEARCH_ENGINES, DEFAULT_ICON_CONFIG } from '../src/constants';
+import { useDialogClose } from '../src/hooks/useDialogClose';
+import { useModalA11y } from '../src/hooks/useModalA11y';
 
 interface SettingsData {
   ai: AIConfig;
@@ -75,6 +77,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const [totpCode, setTotpCode] = useState('');
   const [totpRecovery, setTotpRecovery] = useState('');
   const [totpBusy, setTotpBusy] = useState(false);
+
+  const { closing, close } = useDialogClose(onClose);
+  const panelRef = useRef<HTMLDivElement>(null);
+  useModalA11y(isOpen, close, panelRef);
 
   useEffect(() => {
     if (isOpen) {
@@ -264,7 +270,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         setSettings(finalSettings);
         onSettingsLoaded(finalSettings);
         toast.success('设置已保存');
-        onClose();
+        close();
       }
     } catch (e) { console.error('Settings save error:', e); toast.error(`保存失败: ${e instanceof Error ? e.message : '未知错误'}`); } finally { setSaving(false); }
   };
@@ -310,7 +316,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     localStorage.removeItem('cloudnav_auth_token');
     localStorage.removeItem('lastLoginTime');
     window.dispatchEvent(new CustomEvent('authStateChanged', { detail: { isAuthenticated: false } }));
-    onClose();
+    close();
     toast.success('已成功退出登录');
   };
 
@@ -339,25 +345,25 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-x-0 top-0 bottom-0 h-[100dvh] z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col h-[90dvh]">
+    <div className={`fixed inset-0 z-[60] modal-center flex items-center justify-center px-4 py-[5dvh] bg-black/50 backdrop-blur-sm ${closing ? 'modal-overlay-out' : 'modal-overlay'}`}>
+      <div ref={panelRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" className={`bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-200 dark:border-slate-700 flex flex-col h-full focus:outline-none ${closing ? 'modal-panel-out' : 'modal-panel'}`}>
         <div className="flex justify-between items-center p-4 border-b border-slate-200 dark:border-slate-700 shrink-0">
-          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+          <h2 id="settings-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <Settings size={20} /> 设置面板
           </h2>
           <div className="flex items-center gap-2">
             <button onClick={handleLogout} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-full transition-colors group" title="退出登录">
               <LogOut className="w-5 h-5 text-slate-400 group-hover:text-red-600 transition-colors" />
             </button>
-            <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
+            <button onClick={close} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors">
               <X className="w-5 h-5 dark:text-slate-400" />
             </button>
           </div>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+        <div className={`p-6 overflow-y-auto scrollbar-hide flex-1 ${loading ? 'flex items-center justify-center' : 'space-y-6'}`}>
           {loading ? (
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center">
               <Loader2 className="animate-spin w-8 h-8 text-blue-500" />
               <span className="ml-3 text-slate-500">加载设置中...</span>
             </div>
@@ -911,7 +917,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">取消</button>
+          <button onClick={close} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors">取消</button>
           <button onClick={handleSave} disabled={loading || saving} className="px-4 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 rounded-lg transition-colors flex items-center gap-2 font-medium">
             {saving ? <Loader2 className="animate-spin w-4 h-4" /> : <Save size={16} />}
             {saving ? '保存中...' : '保存设置'}

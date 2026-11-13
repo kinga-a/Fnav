@@ -227,12 +227,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (getConfig === 'links') {
         const categoryId = req.query.category as string;
 
-        // 解析已解锁分类（前端解锁密码分类后携带）
-        let unlockedCategories = new Set<string>();
-        const unlockedParam = req.query.unlocked as string;
-        if (unlockedParam) {
-          try { unlockedCategories = new Set(JSON.parse(unlockedParam)); } catch { /* ignore */ }
-        }
+        // 解析已解锁分类（客户端 unlocked 不再被信任，仅管理员可见全部）
+        const unlockedCategories = new Set<string>();
         const providedPassword = getAuthToken(req) || '';
         const isAdmin = await verifyAuth(providedPassword);
 
@@ -303,12 +299,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // [安全] 恒脱敏：分类密码绝不返回客户端
         const sanitizedCategories = sanitizeCategories(categories);
 
-        // [安全] VULN-05（补漏）：密码分类书签只在已解锁/管理态返回，匿名访问不泄露
-        let unlockedCategories = new Set<string>();
-        const unlockedParam = req.query.unlocked as string;
-        if (unlockedParam) {
-          try { unlockedCategories = new Set(JSON.parse(unlockedParam)); } catch { /* ignore */ }
-        }
+        // 密码分类书签只在管理态返回，客户端 unlocked 不再被信任
+        const unlockedCategories = new Set<string>();
         const providedPassword = getAuthToken(req) || '';
         const isAdmin = await verifyAuth(providedPassword);
 
@@ -328,8 +320,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const body = req.body;
 
       if (body.saveConfig === 'favicon') {
-        const { domain, icon } = body;
-        if (!domain || !icon) return jsonResponse(res, 400, { error: 'Domain and icon required' }, corsHeaders);
+        const providedPassword = getAuthToken(req) || '';
+        const isAuthenticated = await verifyAuth(providedPassword);
+        if (!isAuthenticated) {
+          return jsonResponse(res, 401, { error: '管理操作需要密码验证' }, corsHeaders);
+        }
+        const domain = typeof body.domain === 'string' ? body.domain : '';
+        const icon = body.icon;
+        if (!/^[a-z0-9.-]{1,253}$/i.test(domain) || domain.includes('..')) {
+          return jsonResponse(res, 400, { error: 'Invalid domain' }, corsHeaders);
+        }
+        if (typeof icon !== 'string' || icon.length === 0 || icon.length > 512 * 1024) {
+          return jsonResponse(res, 400, { error: 'Invalid icon payload' }, corsHeaders);
+        }
         await kv.set(`favicon:${domain}`, icon, { ex: 30 * 24 * 60 * 60 });
         return jsonResponse(res, 200, { success: true }, corsHeaders);
       }

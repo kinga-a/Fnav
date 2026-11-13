@@ -139,14 +139,19 @@ export function CategoriesProvider({ children }: { children: React.ReactNode }) 
 
   const categoryTree = useMemo(() => buildCategoryTree(state.categories), [state.categories]);
 
-  return (
-    <CategoriesContext.Provider value={{
+  const contextValue = useMemo(
+    () => ({
       ...state,
       initCategories,
       addCategory, updateCategory, deleteCategory,
       unlockCategory, toggleExpand, setCategoriesAndSync,
       categoryTree, buildCategoryTree,
-    }}>
+    }),
+    [state, initCategories, addCategory, updateCategory, deleteCategory, unlockCategory, toggleExpand, setCategoriesAndSync, categoryTree, buildCategoryTree],
+  );
+
+  return (
+    <CategoriesContext.Provider value={contextValue}>
       {children}
     </CategoriesContext.Provider>
   );

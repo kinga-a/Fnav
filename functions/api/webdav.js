@@ -2,7 +2,7 @@
 // 支持 EdgeOne Pages / Cloudflare Workers
 // [安全] 仅允许已认证管理员使用，目标 URL 仅限 HTTPS 公网地址（防 SSRF / 开放代理 / 凭据外送）
 
-import { getKV, getCorsHeaders, jsonResponse, verifyAuth, getAuthToken, validateExternalUrl, safeFetchWithRedirects } from './_kvAdapter.js';
+import { getKV, getCorsHeaders, jsonResponse, verifyAuth, getAuthToken, validateExternalUrlAsync, safeFetchWithRedirects } from './_kvAdapter.js';
 
 const MAX_PAYLOAD_BYTES = 20 * 1024 * 1024; // 下载备份上限 20MB
 
@@ -48,9 +48,13 @@ export async function onRequest(context) {
     }
 
     // [安全] VULN-02：协议与目标校验（仅 HTTPS 公网地址）
-    const validated = validateExternalUrl(config.url.trim());
+    const validated = await validateExternalUrlAsync(config.url.trim());
     if (!validated.ok) {
       return jsonResponse({ error: validated.error || 'Invalid target URL' }, 400, corsHeaders);
+    }
+
+    if (validated.url.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(validated.url.hostname)) {
+      return jsonResponse({ error: 'WebDAV 仅支持 HTTPS 地址' }, 400, corsHeaders);
     }
 
     let baseUrl = validated.url.toString();

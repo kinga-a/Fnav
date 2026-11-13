@@ -8,13 +8,14 @@ import { getKV, getCorsHeaders, jsonResponse, verifyAuth, getAuthToken, timingSa
 // ==================== 登录限速（进程内） ====================
 const MAX_ATTEMPTS = 5; // 连续失败 5 次后触发退避
 const MAX_BACKOFF_MS = 300000; // 退避上限 5 分钟
+const MAX_TRACKED_IPS = 10000; // 限流表上限，防止伪造 IP 撑爆内存
 const loginAttempts = new Map(); // ip -> { count, totpFails, lockedUntil }
 
 function getClientIp(request) {
   return (
+    request.headers.get('x-real-ip') ||
     request.headers.get('cf-connecting-ip') ||
     request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-    request.headers.get('x-real-ip') ||
     'unknown'
   );
 }
@@ -39,6 +40,16 @@ function lockRemainingMs(ip) {
 
 function recordFailure(ip, type) {
   const now = Date.now();
+  if (loginAttempts.size >= MAX_TRACKED_IPS) {
+    for (const [key, rec] of loginAttempts) {
+      if (!rec.lockedUntil || rec.lockedUntil <= now) loginAttempts.delete(key);
+      if (loginAttempts.size < MAX_TRACKED_IPS) break;
+    }
+    if (loginAttempts.size >= MAX_TRACKED_IPS) {
+      const oldest = loginAttempts.keys().next().value;
+      if (oldest) loginAttempts.delete(oldest);
+    }
+  }
   const rec = loginAttempts.get(ip) || { count: 0, totpFails: 0, lockedUntil: 0 };
   if (type === 'totp') rec.totpFails += 1;
   else rec.count += 1;

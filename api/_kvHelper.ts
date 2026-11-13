@@ -101,11 +101,7 @@ export function calcExpiryTtl(expiry: { value: number; unit: string }): number |
 export async function verifyAuth(providedPassword: string): Promise<boolean> {
   if (!providedPassword) return false;
 
-  // 恒定时间比较，避免时序侧信道
-  if (process.env.PASSWORD && timingSafeEqual(providedPassword, process.env.PASSWORD)) {
-    return true;
-  }
-
+  // 仅接受 KV 中签发的会话 Token，不再允许管理员密码直接作为 Bearer
   try {
     const tokenVal = await kv.get(`auth_token:${providedPassword}`);
     return tokenVal === 'valid';

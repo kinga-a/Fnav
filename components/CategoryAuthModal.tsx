@@ -42,7 +42,15 @@ const CategoryAuthModal: React.FC<CategoryAuthModalProps> = ({ isOpen, onClose, 
         return;
       }
 
-      // 密码正确，解锁分类
+      // 密码正确，保存服务端签发的解锁令牌
+      const token = res.headers.get('X-Category-Token');
+      if (token) {
+        try {
+          const stored = JSON.parse(localStorage.getItem('category_unlock_tokens') || '{}');
+          stored[category.id] = token;
+          localStorage.setItem('category_unlock_tokens', JSON.stringify(stored));
+        } catch {}
+      }
       onUnlock(category.id);
       setPassword('');
       setError('');

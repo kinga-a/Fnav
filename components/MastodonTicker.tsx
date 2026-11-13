@@ -154,7 +154,7 @@ const MastodonTicker: React.FC<TickerProps> = ({ config, isCollapsed }) => {
             <div key={item.id} className="shrink-0 h-9 flex items-center justify-center min-w-0">
               <div
                 className="cursor-pointer hover:text-blue-500 transition-colors flex items-center gap-1 w-full min-w-0"
-                onClick={() => item.url && window.open(item.url, '_blank')}
+                onClick={() => item.url && window.open(item.url, '_blank', 'noopener,noreferrer')}
                 title={item.content.replace(/<[^>]*>/g, '')}
               >
                 <span
@@ -167,7 +167,7 @@ const MastodonTicker: React.FC<TickerProps> = ({ config, isCollapsed }) => {
           <div className="shrink-0 h-9 flex items-center min-w-0">
             <div
               className="cursor-pointer hover:text-blue-500 transition-colors flex items-center gap-1 w-full min-w-0"
-              onClick={() => items[0]?.url && window.open(items[0].url, '_blank')}
+              onClick={() => items[0]?.url && window.open(items[0].url, '_blank', 'noopener,noreferrer')}
               title={items[0]?.content.replace(/<[^>]*>/g, '')}
             >
               <span
